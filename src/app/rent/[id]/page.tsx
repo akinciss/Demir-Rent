@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { db, auth } from "@/lib/firebase";
-import { doc, getDoc, collection, addDoc } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import type { Car } from "@/types/car";
-import { CreditCard, ShieldCheck } from "lucide-react";
+import { CreditCard, AlertCircle, CheckCircle, Info, Calendar } from "lucide-react";
+import { carService } from "@/services/carService";
+import { rentalService, type PricingBreakdown } from "@/services/rentalService";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function RentPage() {
   const params = useParams();
@@ -16,212 +18,387 @@ export default function RentPage() {
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [totalPrice, setTotalPrice] = useState(0);
+  const [pricing, setPricing] = useState<PricingBreakdown | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiptInfo, setReceiptInfo] = useState("");
+  const [submitted, setSubmitted] = useState(false);
 
-  // Kullanıcı giriş yapmamışsa login'e yönlendir
+  // Availability state
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+
+  // 30-day occupancy timeline
+  const [occupancy, setOccupancy] = useState<{ date: string; booked: boolean }[]>([]);
+
+  // Auth guard
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        router.push("/login");
-      }
+      if (!user) router.push("/login");
     });
     return () => unsubscribe();
   }, [router]);
 
-  // Firestore'dan o anki arabanın verisini çek
+  // Fetch car details
   useEffect(() => {
     const fetchCar = async () => {
       if (!params.id) return;
-      
       try {
-        const carDocRef = doc(db, "cars", params.id as string);
-        const carSnapshot = await getDoc(carDocRef);
-
-        if (carSnapshot.exists()) {
-          setCar({ id: carSnapshot.id, ...carSnapshot.data() } as Car);
-        } else {
-          console.error("Araç bulunamadı!");
-        }
+        const fetchedCar = await carService.getCarDetails(params.id as string);
+        setCar(fetchedCar);
       } catch (error) {
         console.error("Hata:", error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchCar();
   }, [params.id]);
 
-  // Tarihlere göre toplam tutarı hesapla
+  // Fetch 30-day occupancy when car loads
+  useEffect(() => {
+    if (!params.id) return;
+    rentalService.getOccupancyForDays(params.id as string, 30).then(setOccupancy);
+  }, [params.id]);
+
+  // Dynamic pricing calculation
   useEffect(() => {
     if (startDate && endDate && car) {
       const start = new Date(startDate);
       const end = new Date(endDate);
-      const diffTime = end.getTime() - start.getTime();
-      
-      // Aynı gün seçilirse en az 1 gün say
-      const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-      
-      // Bitiş tarihi başlangıçtan önce değilse hesapla
-      if (diffTime >= 0) {
-        setTotalPrice(diffDays * car.pricePerDay);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+
+      if (end >= start) {
+        const breakdown = rentalService.calculateDynamicPrice(car.pricePerDay, startDate, endDate);
+        setPricing(breakdown);
       } else {
-        setTotalPrice(0);
+        setPricing(null);
       }
     } else {
-      setTotalPrice(0);
+      setPricing(null);
+      setIsAvailable(null);
     }
   }, [startDate, endDate, car]);
 
+  // Availability check (debounced)
+  useEffect(() => {
+    if (!startDate || !endDate || !params.id || !pricing) {
+      setIsAvailable(null);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      setIsCheckingAvailability(true);
+      try {
+        const result = await rentalService.checkDateAvailability(
+          params.id as string,
+          startDate,
+          endDate
+        );
+        setIsAvailable(result.available);
+      } catch {
+        setIsAvailable(null);
+      } finally {
+        setIsCheckingAvailability(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(timeout);
+  }, [startDate, endDate, params.id, pricing]);
+
   const handleConfirmRent = async () => {
-    if (!auth.currentUser) return;
-    if (!startDate || !endDate || totalPrice <= 0 || !receiptInfo.trim()) return;
+    if (!auth.currentUser || !params.id) return;
+    if (!startDate || !endDate || !pricing || !receiptInfo.trim() || !isAvailable) return;
 
     setIsSubmitting(true);
-
     try {
-      const rentalsCollectionRef = collection(db, "rentals");
-      await addDoc(rentalsCollectionRef, {
+      await rentalService.createRental({
         userId: auth.currentUser.uid,
-        carId: params.id,
+        carId: params.id as string,
         startDate,
         endDate,
-        totalPrice,
+        totalPrice: pricing.totalPrice,
         receiptInfo,
         status: "onay_bekliyor",
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       });
-
-      // İşlem başarılı olunca 2 saniye bekleyip anasayfaya at
-      setTimeout(() => {
-        router.push("/");
-      }, 2000);
-    } catch (error) {
-      console.error("Kiralama hatası:", error);
-      alert("Kiralama sırasında bir hata oluştu.");
+      setSubmitted(true);
+      setTimeout(() => router.push("/"), 2500);
+    } catch (error: any) {
+      alert(error.message || "Kiralama sırasında bir hata oluştu.");
       setIsSubmitting(false);
     }
   };
 
+  const canSubmit =
+    startDate && endDate && pricing && receiptInfo.trim() && isAvailable === true && !isSubmitting;
+
+  // Occupancy timeline helpers
+  const isInRange = (date: string) => {
+    if (!startDate || !endDate) return false;
+    return date >= startDate && date <= endDate;
+  };
+
+  const today = new Date().toISOString().split("T")[0];
+
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50">
-        <div className="flex h-[60vh] items-center justify-center">
-          <div className="flex flex-col items-center">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-            <p className="mt-4 font-medium text-gray-500">Yükleniyor...</p>
-          </div>
-        </div>
+      <main className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--color-bg)" }}>
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-t-transparent" style={{ borderColor: "var(--color-vizon)", borderTopColor: "transparent" }}></div>
       </main>
     );
   }
 
   if (!car) {
     return (
-      <main className="min-h-screen bg-gray-50">
-        <div className="flex h-[60vh] items-center justify-center">
-          <p className="text-xl text-gray-500">Araç bulunamadı.</p>
-        </div>
+      <main className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--color-bg)" }}>
+        <p style={{ color: "var(--color-text-muted)" }}>Araç bulunamadı.</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F5F0] pb-20">
+    <main className="min-h-screen pb-20" style={{ backgroundColor: "var(--color-bg)" }}>
       <div className="mx-auto max-w-4xl px-6 pt-10">
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm border border-stone-200">
-          <div className="grid md:grid-cols-2">
-            {/* Araba Görseli */}
-            <div className="h-64 bg-gray-200 md:h-full">
-              <img src={car.image} alt={car.brand} className="h-full w-full object-cover" />
-            </div>
-
-            {/* Kiralama Detayları */}
-            <div className="p-8 lg:p-12">
-              <div className="mb-6 border-b border-gray-100 pb-6">
-                <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">{car.brand} {car.model}</h1>
-                <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
-                  <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700">{car.year}</span>
-                  <span>{car.fuel}</span>
-                  <span>{car.transmission}</span>
-                </div>
+        <AnimatePresence>
+          {submitted ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center py-32 text-center"
+            >
+              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(139,126,116,0.15)" }}>
+                <CheckCircle className="h-10 w-10" style={{ color: "var(--color-vizon)" }} />
               </div>
-
-              <div className="space-y-6">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">Alış Tarihi</label>
-                  <input 
-                    type="date" 
-                    className="w-full rounded-xl border border-gray-300 bg-gray-50 p-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    min={new Date().toISOString().split("T")[0]}
+              <h2 className="text-3xl font-medium" style={{ fontFamily: "'Playfair Display', serif", color: "var(--color-text)" }}>
+                Talebiniz Alındı
+              </h2>
+              <p className="mt-3 text-base" style={{ color: "var(--color-text-muted)" }}>
+                Ödeme bildiriminiz admin onayına gönderildi. Yönlendiriliyorsunuz...
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45 }}
+              className="glass-card overflow-hidden rounded-3xl"
+            >
+              <div className="grid md:grid-cols-2">
+                {/* Car Image */}
+                <div className="relative h-72 md:h-full overflow-hidden">
+                  <img
+                    src={car.image}
+                    alt={car.brand}
+                    className="h-full w-full object-cover"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  <div className="absolute bottom-5 left-5">
+                    <h1
+                      className="text-2xl font-semibold text-white"
+                      style={{ fontFamily: "'Playfair Display', serif" }}
+                    >
+                      {car.brand} {car.model}
+                    </h1>
+                    <div className="mt-1 flex items-center gap-3 text-sm text-white/80">
+                      <span>{car.year}</span>
+                      <span>·</span>
+                      <span>{car.fuel}</span>
+                      <span>·</span>
+                      <span>{car.transmission}</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">Teslim Tarihi</label>
-                  <input 
-                    type="date" 
-                    className="w-full rounded-xl border border-gray-300 bg-gray-50 p-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    min={startDate || new Date().toISOString().split("T")[0]}
-                  />
-                </div>
-
-                <div className="mt-6 rounded-2xl bg-blue-50 p-6">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Günlük Fiyat</span>
-                    <span className="font-semibold text-gray-900">₺{car.pricePerDay}</span>
-                  </div>
-                  <div className="my-4 border-t border-blue-100"></div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-gray-900">Toplam Tutar</span>
-                    <span className="text-3xl font-extrabold text-blue-700">
-                      {totalPrice > 0 ? `₺${totalPrice}` : "-"}
-                    </span>
-                  </div>
-                  
-                  {totalPrice > 0 && (
-                    <div className="mt-6 space-y-4">
-                      <div className="rounded-xl bg-white p-4 shadow-sm border border-blue-100">
-                        <h4 className="font-semibold text-gray-900 mb-2">Banka Havalesi / EFT Bilgileri</h4>
-                        <p className="text-sm text-gray-600 mb-1"><span className="font-medium text-gray-800">Şirket Adı:</span> Premium Rent A Car A.Ş.</p>
-                        <p className="text-sm text-gray-600 mb-1"><span className="font-medium text-gray-800">Banka:</span> Garanti BBVA</p>
-                        <p className="text-sm font-mono text-gray-800 font-medium">TR12 3456 7890 0000 0000 00</p>
-                        <p className="mt-2 text-xs text-yellow-600">Lütfen açıklamaya araç modelini yazmayı unutmayınız.</p>
-                      </div>
-
+                {/* Booking Form */}
+                <div className="p-8 lg:p-10">
+                  <div className="space-y-5">
+                    {/* Date Inputs */}
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="mb-2 block text-sm font-semibold text-gray-700">Gönderici Ad Soyad / Dekont Referans No <span className="text-red-500">*</span></label>
-                        <input 
-                          type="text" 
-                          required
-                          className="w-full rounded-xl border border-gray-300 bg-white p-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                          value={receiptInfo}
-                          onChange={(e) => setReceiptInfo(e.target.value)}
-                          placeholder="Örn: Ahmet Yılmaz - REF12345"
+                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
+                          Alış Tarihi
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-colors"
+                          style={{ borderColor: "var(--color-border)", backgroundColor: "rgba(255,255,255,0.6)", color: "var(--color-text)" }}
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          min={today}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
+                          Teslim Tarihi
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-colors"
+                          style={{ borderColor: "var(--color-border)", backgroundColor: "rgba(255,255,255,0.6)", color: "var(--color-text)" }}
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          min={startDate || today}
                         />
                       </div>
                     </div>
-                  )}
-                </div>
 
-                <button 
-                  onClick={handleConfirmRent}
-                  disabled={!startDate || !endDate || totalPrice <= 0 || !receiptInfo.trim() || isSubmitting}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-sm font-bold text-white shadow-md transition-all duration-300 hover:scale-[1.02] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-                >
-                  <CreditCard className="h-5 w-5" />
-                  {isSubmitting ? "Ödeme Bildirimi Alındı! Yönlendiriliyorsunuz..." : "Ödeme Bildirimi Yap (Dekont)"}
-                </button>
+                    {/* 30-day Occupancy Timeline */}
+                    {occupancy.length > 0 && (
+                      <div>
+                        <div className="mb-2 flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5" style={{ color: "var(--color-text-muted)" }} />
+                          <span className="text-xs uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
+                            Önümüzdeki 30 Gün
+                          </span>
+                        </div>
+                        <div className="flex gap-[2px] h-3 rounded overflow-hidden">
+                          {occupancy.map((day) => {
+                            const inRange = isInRange(day.date);
+                            let bg = day.booked ? "#c97b5a" : "rgba(139,126,116,0.2)";
+                            if (inRange && !day.booked) bg = "var(--color-gold)";
+                            return (
+                              <div
+                                key={day.date}
+                                title={`${day.date}: ${day.booked ? "Dolu" : "Müsait"}`}
+                                className="flex-1 rounded-[2px] transition-all duration-300"
+                                style={{ backgroundColor: bg }}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div className="mt-1.5 flex gap-4 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                          <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm" style={{ backgroundColor: "rgba(139,126,116,0.2)" }} /> Müsait</span>
+                          <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm" style={{ backgroundColor: "#c97b5a" }} /> Dolu</span>
+                          <span className="flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm" style={{ backgroundColor: "var(--color-gold)" }} /> Seçiminiz</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Availability Status */}
+                    <AnimatePresence mode="wait">
+                      {isCheckingAvailability && (
+                        <motion.div
+                          key="checking"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="flex items-center gap-2 text-sm"
+                          style={{ color: "var(--color-text-muted)" }}
+                        >
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: "var(--color-vizon)", borderTopColor: "transparent" }} />
+                          Uygunluk kontrol ediliyor...
+                        </motion.div>
+                      )}
+                      {!isCheckingAvailability && isAvailable === false && (
+                        <motion.div
+                          key="unavailable"
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-medium"
+                          style={{ backgroundColor: "rgba(201,123,90,0.12)", color: "#c97b5a" }}
+                        >
+                          <AlertCircle className="h-5 w-5 shrink-0" />
+                          Bu tarihlerde araç doludur. Lütfen farklı bir aralık seçin.
+                        </motion.div>
+                      )}
+                      {!isCheckingAvailability && isAvailable === true && pricing && (
+                        <motion.div
+                          key="available"
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-medium"
+                          style={{ backgroundColor: "rgba(139,126,116,0.1)", color: "var(--color-vizon)" }}
+                        >
+                          <CheckCircle className="h-5 w-5 shrink-0" />
+                          Bu tarihler müsait.
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Pricing Breakdown */}
+                    {pricing && isAvailable === true && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="rounded-2xl p-5 space-y-3"
+                        style={{ backgroundColor: "rgba(255,255,255,0.6)", border: "1px solid var(--color-border)" }}
+                      >
+                        <div className="flex items-center justify-between text-sm" style={{ color: "var(--color-text-muted)" }}>
+                          <span>{pricing.totalDays} gün × ₺{car.pricePerDay}</span>
+                          <span>₺{car.pricePerDay * pricing.totalDays}</span>
+                        </div>
+                        {pricing.hasWeekendSurcharge && (
+                          <>
+                            <div className="flex items-center justify-between text-sm" style={{ color: "var(--color-gold)" }}>
+                              <span>{pricing.weekendDays} hafta sonu günü (+%25)</span>
+                              <span>+₺{Math.round(car.pricePerDay * 0.25 * pricing.weekendDays)}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs" style={{ backgroundColor: "rgba(166,138,100,0.1)", color: "var(--color-gold)" }}>
+                              <Info className="h-3.5 w-3.5 shrink-0" />
+                              Hafta sonu avantajlı fiyatlandırma dahil edildi.
+                            </div>
+                          </>
+                        )}
+                        <div className="flex items-center justify-between border-t pt-3" style={{ borderColor: "var(--color-border)" }}>
+                          <span className="font-medium" style={{ color: "var(--color-text)" }}>Toplam Tutar</span>
+                          <span
+                            className="text-2xl font-semibold"
+                            style={{ fontFamily: "'Playfair Display', serif", color: "var(--color-gold)" }}
+                          >
+                            ₺{pricing.totalPrice}
+                          </span>
+                        </div>
+
+                        {/* Bank Transfer Info */}
+                        <div className="rounded-xl p-4 space-y-1.5 text-sm" style={{ backgroundColor: "rgba(248,245,242,0.8)", border: "1px solid var(--color-border)" }}>
+                          <p className="font-medium mb-2" style={{ color: "var(--color-text)" }}>Banka Havalesi / EFT</p>
+                          <p style={{ color: "var(--color-text-muted)" }}><span className="font-medium" style={{ color: "var(--color-text)" }}>Firma:</span> Demir Rent A.Ş.</p>
+                          <p style={{ color: "var(--color-text-muted)" }}><span className="font-medium" style={{ color: "var(--color-text)" }}>Banka:</span> Garanti BBVA</p>
+                          <p className="font-mono text-xs pt-1" style={{ color: "var(--color-text)" }}>TR12 3456 7890 0000 0000 00</p>
+                          <p className="text-xs pt-1" style={{ color: "var(--color-gold)" }}>Açıklamaya araç modelini yazmayı unutmayın.</p>
+                        </div>
+
+                        {/* Receipt Info Input */}
+                        <div>
+                          <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
+                            Gönderici Ad Soyad / Dekont Referans No <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-colors"
+                            style={{ borderColor: "var(--color-border)", backgroundColor: "rgba(255,255,255,0.7)", color: "var(--color-text)" }}
+                            value={receiptInfo}
+                            onChange={(e) => setReceiptInfo(e.target.value)}
+                            placeholder="Örn: Ahmet Yılmaz — REF12345"
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Submit Button */}
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={handleConfirmRent}
+                      disabled={!canSubmit}
+                      className="flex w-full items-center justify-center gap-2.5 rounded-xl py-3.5 text-sm font-medium text-white transition-all duration-500 disabled:cursor-not-allowed disabled:opacity-40"
+                      style={{ backgroundColor: canSubmit ? "var(--color-vizon)" : "var(--color-vizon)" }}
+                    >
+                      <CreditCard className="h-5 w-5" />
+                      {isSubmitting
+                        ? "Gönderiliyor..."
+                        : isAvailable === false
+                        ? "Bu Tarihler Müsait Değil"
+                        : "Ödeme Bildirimi Yap"}
+                    </motion.button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </main>
   );

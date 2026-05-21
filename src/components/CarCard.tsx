@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Key } from "lucide-react";
+import { motion } from "framer-motion";
 
 type CarCardProps = {
   id?: string | number;
@@ -15,6 +16,9 @@ type CarCardProps = {
   transmission: string;
   pricePerDay: number;
   image: string;
+  type?: string;
+  capacity?: number;
+  isAvailable?: boolean;
 };
 
 export default function CarCard({
@@ -26,17 +30,17 @@ export default function CarCard({
   transmission,
   pricePerDay,
   image,
+  type,
+  capacity,
+  isAvailable,
 }: CarCardProps) {
   const [userLoaded, setUserLoaded] = useState(false);
   const router = useRouter();
-
-  console.log("CarCard bileşenine ulaşan araç verisi:", { id, brand, model });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, () => {
       setUserLoaded(true);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -49,44 +53,114 @@ export default function CarCard({
       }
       return;
     }
-
     router.push("/login");
   };
 
   return (
-    <div className="overflow-hidden rounded-xl bg-white shadow-sm transition-all duration-500 ease-out hover:-translate-y-3 hover:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] border border-stone-200 flex flex-col h-full">
-      <div className="h-56 w-full bg-stone-100 shrink-0">
-        <img src={image} alt={brand} className="h-full w-full object-cover" />
-      </div>
-      <div className="p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-medium tracking-tight text-stone-800">{brand}</h2>
-            <p className="mt-1 text-sm text-stone-500">{model}</p>
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+      whileHover={{ scale: 1.025, y: -4 }}
+      className="glass-card overflow-hidden rounded-2xl flex flex-col h-full cursor-pointer transition-all duration-500"
+      style={{ boxShadow: "var(--shadow-soft)" }}
+    >
+      {/* Image */}
+      <div className="relative h-52 w-full shrink-0 overflow-hidden">
+        <img
+          src={image}
+          alt={brand}
+          className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
+        />
+        {/* Availability Badge */}
+        {isAvailable !== undefined && (
+          <div className={`absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-medium ${
+            isAvailable
+              ? "bg-white/80 text-emerald-700 backdrop-blur-sm"
+              : "bg-white/80 text-rose-600 backdrop-blur-sm"
+          }`}>
+            {isAvailable ? "Müsait" : "Dolu"}
           </div>
-          <span className="rounded-full bg-stone-100 border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600">
+        )}
+        {/* Type Badge */}
+        {type && (
+          <div className="absolute top-3 left-3 rounded-full bg-white/70 backdrop-blur-sm px-2.5 py-1 text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
+            {type}
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-col flex-1 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2
+              className="text-lg font-medium leading-tight"
+              style={{ fontFamily: "'Playfair Display', serif", color: "var(--color-text)" }}
+            >
+              {brand}
+            </h2>
+            <p className="mt-0.5 text-sm" style={{ color: "var(--color-text-muted)" }}>
+              {model}
+            </p>
+          </div>
+          <span
+            className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium"
+            style={{ backgroundColor: "rgba(139,126,116,0.1)", color: "var(--color-vizon)" }}
+          >
             {year}
           </span>
         </div>
-        <div className="mt-5 flex flex-wrap gap-3 text-sm text-stone-600">
-          <div className="rounded-lg bg-stone-50 border border-stone-100 px-3 py-2">{fuel}</div>
-          <div className="rounded-lg bg-stone-50 border border-stone-100 px-3 py-2">{transmission}</div>
+
+        {/* Details */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[fuel, transmission].map((tag) => (
+            <span
+              key={tag}
+              className="rounded-lg px-2.5 py-1.5 text-xs font-medium"
+              style={{ backgroundColor: "rgba(248,245,242,0.9)", color: "var(--color-text-muted)", border: "1px solid var(--color-border)" }}
+            >
+              {tag}
+            </span>
+          ))}
+          {capacity && (
+            <span
+              className="rounded-lg px-2.5 py-1.5 text-xs font-medium"
+              style={{ backgroundColor: "rgba(248,245,242,0.9)", color: "var(--color-text-muted)", border: "1px solid var(--color-border)" }}
+            >
+              {capacity} Kişi
+            </span>
+          )}
         </div>
-        <div className="mt-6 flex items-center justify-between gap-4 pt-4 border-t border-stone-100">
+
+        {/* Price & CTA */}
+        <div
+          className="mt-auto flex items-center justify-between gap-4 pt-4 mt-5"
+          style={{ borderTop: "1px solid var(--color-border)" }}
+        >
           <div>
-            <p className="text-xs uppercase tracking-wider text-stone-400">Günlük Fiyat</p>
-            <h3 className="text-2xl font-semibold text-stone-800">₺{pricePerDay}</h3>
+            <p className="text-[10px] uppercase tracking-widest" style={{ color: "var(--color-text-muted)" }}>
+              Günlük
+            </p>
+            <p
+              className="text-2xl font-semibold"
+              style={{ fontFamily: "'Playfair Display', serif", color: "var(--color-gold)" }}
+            >
+              ₺{pricePerDay}
+            </p>
           </div>
-          <button
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={handleRent}
-            className="flex items-center gap-2 rounded-xl bg-stone-800 px-6 py-3 text-sm font-medium text-[#F7F5F0] transition-colors duration-500 hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={!userLoaded && !auth.currentUser}
+            className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition-all duration-500 hover:opacity-85 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ backgroundColor: "var(--color-vizon)" }}
           >
             <Key className="h-4 w-4" />
             Kirala
-          </button>
+          </motion.button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

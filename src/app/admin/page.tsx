@@ -2,9 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { db, auth } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { ShieldCheck, PlusCircle, CheckCircle, RefreshCcw, Settings } from "lucide-react";
+import { ShieldCheck, PlusCircle, CheckCircle, RefreshCcw, Settings, Trash2, Car } from "lucide-react";
+import { adminService } from "@/services/adminService";
+import { useAdmin } from "@/hooks/useAdmin";
+import { carRepository } from "@/repositories/carRepository";
+import { useCars } from "@/hooks/useCars";
+import { motion } from "framer-motion";
 import type { Rental } from "@/types/car";
 
 export default function AdminPage() {
@@ -12,275 +17,337 @@ export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
+  const { pendingRentals, loading: loadingRentals, refetch, approveRental } = useAdmin();
+  const { cars, loading: loadingCars, refetch: refetchCars } = useCars();
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user && user.email === "eyleniyoruz.test01@gmail.com") {
         setIsAdmin(true);
       } else {
         setIsAdmin(false);
-        setTimeout(() => {
-          router.push("/");
-        }, 2000);
+        setTimeout(() => router.push("/"), 2000);
       }
       setCheckingAuth(false);
     });
     return () => unsubscribe();
   }, [router]);
 
-  // --- Section A: Add Car State ---
+  // --- Add Car Form State ---
   const [carData, setCarData] = useState({
-    brand: "",
-    model: "",
-    year: new Date().getFullYear(),
-    fuel: "Benzin",
-    transmission: "Otomatik",
-    pricePerDay: 0,
-    image: "",
-    seats: 5
+    brand: "", model: "", year: new Date().getFullYear(),
+    fuel: "Benzin", transmission: "Otomatik", pricePerDay: 0,
+    image: "", seats: 5, type: "Sedan"
   });
   const [isAdding, setIsAdding] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
-
-  // --- Section B: Rentals List State ---
-  const [rentals, setRentals] = useState<Rental[]>([]);
-  const [loadingRentals, setLoadingRentals] = useState(true);
-
-  const fetchPendingRentals = async () => {
-    try {
-      setLoadingRentals(true);
-      const q = query(collection(db, "rentals"), where("status", "==", "onay_bekliyor"));
-      const querySnapshot = await getDocs(q);
-      const pendingRentals = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Rental[];
-      
-      setRentals(pendingRentals);
-    } catch (error) {
-      console.error("Kiralama talepleri çekilemedi:", error);
-    } finally {
-      setLoadingRentals(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPendingRentals();
-  }, []);
+  const [showForm, setShowForm] = useState(false);
 
   const handleAddCar = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAdding(true);
     try {
-      await addDoc(collection(db, "cars"), {
-        brand: carData.brand,
-        model: carData.model,
-        year: Number(carData.year),
-        fuel: carData.fuel,
-        transmission: carData.transmission,
-        pricePerDay: Number(carData.pricePerDay),
-        image: carData.image,
-        seats: Number(carData.seats)
+      await adminService.addCar({
+        brand: carData.brand, model: carData.model, year: Number(carData.year),
+        fuel: carData.fuel, transmission: carData.transmission,
+        pricePerDay: Number(carData.pricePerDay), image: carData.image,
+        seats: Number(carData.seats), capacity: Number(carData.seats),
+        type: carData.type, isAvailable: true,
       });
       setSuccessMsg("Araç başarıyla eklendi!");
-      setCarData({
-        brand: "",
-        model: "",
-        year: new Date().getFullYear(),
-        fuel: "Benzin",
-        transmission: "Otomatik",
-        pricePerDay: 0,
-        image: "",
-        seats: 5
-      });
+      setCarData({ brand: "", model: "", year: new Date().getFullYear(), fuel: "Benzin", transmission: "Otomatik", pricePerDay: 0, image: "", seats: 5, type: "Sedan" });
+      setShowForm(false);
+      refetchCars();
       setTimeout(() => setSuccessMsg(""), 3000);
-    } catch (error) {
-      console.error("Araç ekleme hatası:", error);
-      alert("Araç eklenirken bir hata oluştu.");
+    } catch (error: any) {
+      alert(error.message || "Araç eklenirken bir hata oluştu.");
     } finally {
       setIsAdding(false);
     }
   };
 
+  const handleDeleteCar = async (carId: string | number) => {
+    if (!confirm("Bu aracı silmek istediğinizden emin misiniz?")) return;
+    try {
+      await carRepository.deleteCar(String(carId));
+      refetchCars();
+    } catch {
+      alert("Araç silinirken hata oluştu.");
+    }
+  };
+
   const handleApprove = async (rentalId: string) => {
     try {
-      const rentalRef = doc(db, "rentals", rentalId);
-      await updateDoc(rentalRef, {
-        status: "aktif"
-      });
-      // Onaylanan aracı listeden anında çıkar
-      setRentals(prev => prev.filter(r => r.id !== rentalId));
-      alert("Kiralama başarıyla onaylandı!");
-    } catch (error) {
-      console.error("Onaylama hatası:", error);
+      await approveRental(rentalId);
+    } catch {
       alert("Onaylanırken hata oluştu.");
     }
   };
 
+  const inputClass = "w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-colors focus:border-[#8B7E74]";
+  const inputStyle = { borderColor: "var(--color-border)", backgroundColor: "rgba(255,255,255,0.7)", color: "var(--color-text)" };
+
   if (checkingAuth) {
     return (
-      <main className="min-h-screen bg-gray-50">
-        <div className="flex h-[60vh] items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-        </div>
+      <main className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--color-bg)" }}>
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-t-transparent" style={{ borderColor: "var(--color-vizon)", borderTopColor: "transparent" }} />
       </main>
     );
   }
 
   if (!isAdmin) {
     return (
-      <main className="min-h-screen bg-gray-50">
-        <div className="flex h-[60vh] items-center justify-center">
-          <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center max-w-lg shadow-sm">
-            <h2 className="mb-2 text-2xl font-bold text-red-700">Erişim Reddedildi</h2>
-            <p className="text-red-600 font-medium">Bu sayfaya erişim yetkiniz yoktur! Yönlendiriliyorsunuz...</p>
-          </div>
+      <main className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--color-bg)" }}>
+        <div className="rounded-2xl border p-8 text-center max-w-md" style={{ borderColor: "rgba(201,123,90,0.3)", backgroundColor: "rgba(201,123,90,0.08)" }}>
+          <h2 className="mb-2 text-2xl" style={{ fontFamily: "'Playfair Display', serif", color: "#c97b5a" }}>Erişim Reddedildi</h2>
+          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Bu sayfaya erişim yetkiniz yoktur. Yönlendiriliyorsunuz...</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F5F0] pb-20">
+    <main className="min-h-screen pb-20" style={{ backgroundColor: "var(--color-bg)" }}>
       <div className="mx-auto max-w-7xl px-6 pt-10">
-        <div className="flex items-center gap-3 mb-8">
-          <Settings className="h-8 w-8 text-stone-800" />
-          <h1 className="text-3xl font-light text-stone-800 tracking-tight">Yönetim Paneli</h1>
+        {/* Header */}
+        <div className="mb-8 flex items-center gap-3">
+          <Settings className="h-7 w-7" style={{ color: "var(--color-vizon)" }} />
+          <h1 className="text-3xl font-medium" style={{ fontFamily: "'Playfair Display', serif", color: "var(--color-text)" }}>
+            Yönetim Paneli
+          </h1>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          
-          {/* BÖLÜM A: Yeni Araç Ekleme Formu */}
-          <div className="rounded-3xl bg-white p-8 shadow-lg border border-slate-100">
-            <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-gray-900">
-              <PlusCircle className="h-6 w-6 text-blue-600" />
-              Yeni Araç Ekle
-            </h2>
-            
-            <form onSubmit={handleAddCar} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-700">Marka</label>
-                  <input required type="text" className="w-full rounded-xl border border-gray-300 p-3 text-gray-900 outline-none focus:border-blue-500" value={carData.brand} onChange={e => setCarData({...carData, brand: e.target.value})} placeholder="Örn: BMW" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-700">Model</label>
-                  <input required type="text" className="w-full rounded-xl border border-gray-300 p-3 text-gray-900 outline-none focus:border-blue-500" value={carData.model} onChange={e => setCarData({...carData, model: e.target.value})} placeholder="Örn: 320i" />
-                </div>
+        {successMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium"
+            style={{ backgroundColor: "rgba(139,126,116,0.12)", color: "var(--color-vizon)" }}
+          >
+            <CheckCircle className="h-4 w-4" />
+            {successMsg}
+          </motion.div>
+        )}
+
+        <div className="grid lg:grid-cols-2 gap-8">
+
+          {/* LEFT: Araç Envanteri */}
+          <div>
+            <div className="glass-card rounded-3xl p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="flex items-center gap-2 text-lg font-medium" style={{ fontFamily: "'Playfair Display', serif", color: "var(--color-text)" }}>
+                  <Car className="h-5 w-5" style={{ color: "var(--color-vizon)" }} />
+                  Araç Envanteri
+                </h2>
+                <button
+                  onClick={() => setShowForm(!showForm)}
+                  className="flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium text-white transition-all duration-300 hover:opacity-80"
+                  style={{ backgroundColor: "var(--color-vizon)" }}
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  {showForm ? "İptal" : "Yeni Araç"}
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-700">Yıl</label>
-                  <input required type="number" className="w-full rounded-xl border border-gray-300 p-3 text-gray-900 outline-none focus:border-blue-500" value={carData.year} onChange={e => setCarData({...carData, year: Number(e.target.value)})} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-700">Günlük Fiyat (₺)</label>
-                  <input required type="number" className="w-full rounded-xl border border-gray-300 p-3 text-gray-900 outline-none focus:border-blue-500" value={carData.pricePerDay || ""} onChange={e => setCarData({...carData, pricePerDay: Number(e.target.value)})} />
-                </div>
-              </div>
+              {/* Add Car Form */}
+              {showForm && (
+                <motion.form
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  onSubmit={handleAddCar}
+                  className="mb-6 space-y-3 overflow-hidden rounded-2xl p-5"
+                  style={{ backgroundColor: "rgba(255,255,255,0.5)", border: "1px solid var(--color-border)" }}
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Marka</label>
+                      <input required type="text" className={inputClass} style={inputStyle} placeholder="BMW" value={carData.brand} onChange={e => setCarData({ ...carData, brand: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Model</label>
+                      <input required type="text" className={inputClass} style={inputStyle} placeholder="320i" value={carData.model} onChange={e => setCarData({ ...carData, model: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Yıl</label>
+                      <input required type="number" className={inputClass} style={inputStyle} value={carData.year} onChange={e => setCarData({ ...carData, year: Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Günlük (₺)</label>
+                      <input required type="number" className={inputClass} style={inputStyle} value={carData.pricePerDay || ""} onChange={e => setCarData({ ...carData, pricePerDay: Number(e.target.value) })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Yakıt</label>
+                      <select className={inputClass} style={inputStyle} value={carData.fuel} onChange={e => setCarData({ ...carData, fuel: e.target.value })}>
+                        <option>Benzin</option><option>Dizel</option><option>Elektrik</option><option>Hibrit</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Vites</label>
+                      <select className={inputClass} style={inputStyle} value={carData.transmission} onChange={e => setCarData({ ...carData, transmission: e.target.value })}>
+                        <option>Otomatik</option><option>Manuel</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Tip</label>
+                      <select className={inputClass} style={inputStyle} value={carData.type} onChange={e => setCarData({ ...carData, type: e.target.value })}>
+                        <option>Sedan</option><option>SUV</option><option>Hatchback</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Görsel URL</label>
+                    <input required type="url" className={inputClass} style={inputStyle} placeholder="https://..." value={carData.image} onChange={e => setCarData({ ...carData, image: e.target.value })} />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isAdding}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium text-white transition-all duration-300 hover:opacity-80 disabled:opacity-50"
+                    style={{ backgroundColor: "var(--color-vizon)" }}
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    {isAdding ? "Ekleniyor..." : "Aracı Ekle"}
+                  </button>
+                </motion.form>
+              )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-700">Yakıt Tipi</label>
-                  <select className="w-full rounded-xl border border-gray-300 p-3 text-gray-900 outline-none focus:border-blue-500" value={carData.fuel} onChange={e => setCarData({...carData, fuel: e.target.value})}>
-                    <option value="Benzin">Benzin</option>
-                    <option value="Dizel">Dizel</option>
-                    <option value="Elektrik">Elektrik</option>
-                    <option value="Hibrit">Hibrit</option>
-                  </select>
+              {/* Car List */}
+              {loadingCars ? (
+                <div className="flex justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" style={{ borderColor: "var(--color-vizon)", borderTopColor: "transparent" }} />
                 </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-700">Vites Tipi</label>
-                  <select className="w-full rounded-xl border border-gray-300 p-3 text-gray-900 outline-none focus:border-blue-500" value={carData.transmission} onChange={e => setCarData({...carData, transmission: e.target.value})}>
-                    <option value="Otomatik">Otomatik</option>
-                    <option value="Manuel">Manuel</option>
-                  </select>
+              ) : cars.length === 0 ? (
+                <div className="flex items-center justify-center rounded-xl border-2 border-dashed py-12 text-center" style={{ borderColor: "var(--color-border)" }}>
+                  <p style={{ color: "var(--color-text-muted)" }}>Henüz araç eklenmedi.</p>
                 </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">Görsel URL (imageUrl)</label>
-                <input required type="url" className="w-full rounded-xl border border-gray-300 p-3 text-gray-900 outline-none focus:border-blue-500" value={carData.image} onChange={e => setCarData({...carData, image: e.target.value})} placeholder="https://images.unsplash.com/..." />
-              </div>
-
-              <button 
-                type="submit" 
-                disabled={isAdding}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-sm font-bold text-white shadow-md transition-all duration-300 hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
-              >
-                <PlusCircle className="h-5 w-5" />
-                {isAdding ? "Ekleniyor..." : "Aracı Veritabanına Ekle"}
-              </button>
-              
-              {successMsg && (
-                <div className="mt-4 rounded-xl bg-green-50 p-4 text-center font-medium text-green-700 border border-green-200">
-                  {successMsg}
+              ) : (
+                <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                  {cars.map((car) => (
+                    <motion.div
+                      key={car.id}
+                      layout
+                      className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-white/50"
+                      style={{ border: "1px solid var(--color-border)" }}
+                    >
+                      <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg">
+                        <img src={car.image} alt={car.brand} className="h-full w-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate" style={{ color: "var(--color-text)" }}>{car.brand} {car.model}</p>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>{car.year} · {car.type} · ₺{car.pricePerDay}/gün</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteCar(car.id)}
+                        className="shrink-0 rounded-lg p-2 transition-colors hover:bg-red-50"
+                        title="Sil"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-400" />
+                      </button>
+                    </motion.div>
+                  ))}
                 </div>
               )}
-            </form>
+            </div>
           </div>
 
-          {/* BÖLÜM B: Kiralama Onay Listesi */}
-          <div className="rounded-3xl bg-white p-8 shadow-lg border border-slate-100 flex flex-col h-full">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-                <ShieldCheck className="h-6 w-6 text-blue-600" />
-                Bekleyen Ödemeler
-              </h2>
-              <button onClick={fetchPendingRentals} className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-indigo-600 transition">
-                <RefreshCcw className="h-4 w-4" />
-                Yenile
-              </button>
-            </div>
+          {/* RIGHT: Rezervasyon Talepleri */}
+          <div>
+            <div className="glass-card rounded-3xl p-8">
+              <div className="mb-6 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-lg font-medium" style={{ fontFamily: "'Playfair Display', serif", color: "var(--color-text)" }}>
+                  <ShieldCheck className="h-5 w-5" style={{ color: "var(--color-vizon)" }} />
+                  Rezervasyon Talepleri
+                </h2>
+                <button
+                  onClick={refetch}
+                  className="flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-60"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                  Yenile
+                </button>
+              </div>
 
-            {loadingRentals ? (
-              <div className="flex flex-1 items-center justify-center py-10">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-              </div>
-            ) : rentals.length === 0 ? (
-              <div className="flex flex-1 items-center justify-center rounded-xl border-2 border-dashed border-gray-200 p-10 text-center">
-                <p className="text-gray-500">Onay bekleyen kiralama talebi yok.</p>
-              </div>
-            ) : (
-              <div className="space-y-4 overflow-y-auto pr-2" style={{ maxHeight: '500px' }}>
-                {rentals.map(rental => (
-                  <div key={rental.id} className="rounded-xl border border-gray-200 p-5 transition hover:border-blue-300 hover:shadow-md">
-                    <div className="mb-4 grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <span className="block text-xs font-semibold text-gray-400">Kullanıcı ID</span> 
-                        <span className="font-mono text-gray-800">{rental.userId.substring(0, 10)}...</span>
-                      </div>
-                      <div>
-                        <span className="block text-xs font-semibold text-gray-400">Araç ID</span> 
-                        <span className="font-mono text-gray-800">{rental.carId.substring(0, 10)}...</span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="block text-xs font-semibold text-gray-400">Tarih Aralığı</span> 
-                        <span className="text-gray-800">{rental.startDate} &rarr; {rental.endDate}</span>
-                      </div>
-                      <div className="col-span-2 flex justify-between items-center bg-blue-50 p-3 rounded-lg mt-1">
-                        <span className="font-semibold text-blue-900">Toplam Tutar:</span> 
-                        <span className="font-extrabold text-blue-700 text-lg">₺{rental.totalPrice}</span>
-                      </div>
-                      {rental.receiptInfo && (
-                        <div className="col-span-2 mt-2 bg-gray-50 border border-gray-200 p-3 rounded-lg">
-                          <span className="block text-xs font-semibold text-gray-500 mb-1">Dekont / Referans Bilgisi</span>
-                          <span className="font-medium text-gray-900 break-all">{rental.receiptInfo}</span>
+              {loadingRentals ? (
+                <div className="flex justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" style={{ borderColor: "var(--color-vizon)", borderTopColor: "transparent" }} />
+                </div>
+              ) : pendingRentals.length === 0 ? (
+                <div className="flex items-center justify-center rounded-xl border-2 border-dashed py-12 text-center" style={{ borderColor: "var(--color-border)" }}>
+                  <p style={{ color: "var(--color-text-muted)" }}>Onay bekleyen talep yok.</p>
+                </div>
+              ) : (
+                <div className="space-y-4 max-h-[520px] overflow-y-auto pr-1">
+                  {pendingRentals.map((rental: Rental) => (
+                    <motion.div
+                      key={rental.id}
+                      layout
+                      className="rounded-2xl p-5 space-y-3 transition-colors"
+                      style={{ border: "1px solid var(--color-border)", backgroundColor: "rgba(255,255,255,0.5)" }}
+                    >
+                      {/* Car Info */}
+                      {rental.carDetails && (
+                        <div className="flex items-center gap-3 pb-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
+                          <div className="h-10 w-14 overflow-hidden rounded-lg shrink-0">
+                            <img src={rental.carDetails.image} alt={rental.carDetails.brand} className="h-full w-full object-cover" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm" style={{ color: "var(--color-text)" }}>{rental.carDetails.brand} {rental.carDetails.model}</p>
+                            <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{rental.carDetails.year}</p>
+                          </div>
                         </div>
                       )}
-                    </div>
-                    
-                    <button 
-                      onClick={() => handleApprove(rental.id)}
-                      className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 py-3 text-sm font-bold text-white shadow-md transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
-                    >
-                      <CheckCircle className="h-5 w-5" />
-                      Kiralama ve Ödemeyi Onayla
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+
+                      {/* Details Grid */}
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: "var(--color-text-muted)" }}>Tarih</p>
+                          <p className="font-medium text-xs" style={{ color: "var(--color-text)" }}>{rental.startDate} → {rental.endDate}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: "var(--color-text-muted)" }}>Tutar</p>
+                          <p className="font-semibold" style={{ fontFamily: "'Playfair Display', serif", color: "var(--color-gold)" }}>₺{rental.totalPrice}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: "var(--color-text-muted)" }}>Kullanıcı ID</p>
+                          <p className="font-mono text-xs" style={{ color: "var(--color-text)" }}>{rental.userId.substring(0, 12)}...</p>
+                        </div>
+                      </div>
+
+                      {/* Receipt Info — Prominent */}
+                      {rental.receiptInfo ? (
+                        <div className="rounded-xl p-4" style={{ backgroundColor: "rgba(166,138,100,0.1)", border: "1px solid rgba(166,138,100,0.25)" }}>
+                          <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: "var(--color-gold)" }}>Dekont / Referans No</p>
+                          <p className="text-base font-semibold break-all" style={{ fontFamily: "'Playfair Display', serif", color: "var(--color-text)" }}>
+                            {rental.receiptInfo}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="rounded-xl p-3" style={{ backgroundColor: "rgba(201,123,90,0.08)", border: "1px solid rgba(201,123,90,0.2)" }}>
+                          <p className="text-xs text-center" style={{ color: "#c97b5a" }}>Dekont bilgisi girilmemiş — onay yapılamaz.</p>
+                        </div>
+                      )}
+
+                      {/* Approve Button — only active if receiptInfo exists */}
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => handleApprove(rental.id)}
+                        disabled={!rental.receiptInfo}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium text-white transition-all duration-300 hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30"
+                        style={{ backgroundColor: "var(--color-vizon)" }}
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        {rental.receiptInfo ? "Ödemeyi Onayla" : "Dekont Bekleniyor"}
+                      </motion.button>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
         </div>

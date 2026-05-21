@@ -1,5 +1,56 @@
+/* ===== GOOGLE FONTS ===== */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap');
+
 @import "tailwindcss";
 
+/* ===== DESIGN TOKENS ===== */
+:root {
+  --color-bg: #F8F5F2;
+  --color-surface: #FDFBF9;
+  --color-text: #2D2926;
+  --color-text-muted: #7A706A;
+  --color-vizon: #8B7E74;
+  --color-gold: #A68A64;
+  --color-border: rgba(139, 126, 116, 0.18);
+  --shadow-soft: 0 4px 24px -4px rgba(45, 41, 38, 0.08), 0 1px 4px rgba(45, 41, 38, 0.04);
+  --shadow-lifted: 0 12px 40px -8px rgba(45, 41, 38, 0.14), 0 2px 8px rgba(45, 41, 38, 0.06);
+}
+
+/* ===== BASE STYLES ===== */
+html {
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-serif {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* ===== GLASSMORPHISM UTILITIES ===== */
+.glass-card {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: var(--shadow-soft);
+}
+
+.glass-card:hover {
+  box-shadow: var(--shadow-lifted);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.glass-nav {
+  background: rgba(248, 245, 242, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(139, 126, 116, 0.12);
+}
+
+/* ===== SCROLLBAR HIDE ===== */
 @layer utilities {
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
@@ -8,4 +59,36 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+}
+
+/* ===== CUSTOM RANGE INPUT ===== */
+input[type="range"] {
+  accent-color: var(--color-vizon);
+}
+
+/* ===== TIMELINE STRIPE ===== */
+.timeline-stripe {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  gap: 1px;
+}
+
+.timeline-day {
+  flex: 1;
+  border-radius: 2px;
+  transition: opacity 0.2s;
+}
+
+.timeline-day.available {
+  background-color: #d1c9c3;
+}
+
+.timeline-day.booked {
+  background-color: #c97b5a;
+}
+
+.timeline-day.selected {
+  background-color: var(--color-gold);
 }

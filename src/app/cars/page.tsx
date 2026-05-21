@@ -1,55 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
-import type { Car } from "@/types/car";
+import { useState } from "react";
 import CarCard from "@/components/CarCard";
+import { useCars } from "@/hooks/useCars";
+import { carService } from "@/services/carService";
 
 export default function CarsPage() {
-  const [carList, setCarList] = useState<Car[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { cars: carList, loading, error } = useCars();
 
   // Filtre State'leri
   const [filterType, setFilterType] = useState<string>("Tümü");
   const [filterCapacity, setFilterCapacity] = useState<string>("Tümü");
   const [maxBudget, setMaxBudget] = useState<number>(10000);
   const [onlyAvailable, setOnlyAvailable] = useState<boolean>(false);
-
-  useEffect(() => {
-    const fetchCars = async () => {
-      try {
-        setLoading(true);
-        const carsCollectionRef = collection(db, "cars");
-        const querySnapshot = await getDocs(carsCollectionRef);
-
-        const defaultTypes = ["Sedan", "SUV", "Hatchback"];
-        
-        const fetchedCars = querySnapshot.docs.map((doc) => {
-          const data = doc.data();
-          // Eğer Firestore'da yoksa varsayılan değerleri ata
-          const type = data.type || defaultTypes[Math.floor(Math.random() * defaultTypes.length)];
-          const capacity = data.capacity || data.seats || (Math.random() > 0.5 ? 5 : 4);
-          const isAvailable = data.isAvailable !== undefined ? data.isAvailable : true;
-          
-          return {
-            id: doc.id,
-            ...data,
-            type,
-            capacity,
-            isAvailable
-          } as Car;
-        });
-        setCarList(fetchedCars);
-      } catch (error) {
-        console.error("Araçları çekerken hata:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCars();
-  }, []);
 
   return (
     <main className="bg-[#F7F5F0] pb-20 min-h-screen">
@@ -66,14 +29,14 @@ export default function CarsPage() {
         </div>
 
         {/* FİLTRELEME PANELİ */}
-        {!loading && carList.length > 0 && (
-          <div className="mb-10 rounded-3xl bg-white p-6 shadow-md border border-slate-100 flex flex-col md:flex-row gap-6 items-end">
+        {!loading && !error && carList.length > 0 && (
+          <div className="mb-10 rounded-3xl bg-white p-6 shadow-sm border border-stone-200 flex flex-col md:flex-row gap-6 items-end">
             <div className="flex-1 w-full">
-              <label className="block text-sm font-bold text-gray-700 mb-2">Araç Tipi</label>
+              <label className="block text-sm font-medium text-stone-700 mb-2">Araç Tipi</label>
               <select 
                 value={filterType} 
                 onChange={(e) => setFilterType(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 outline-none focus:border-blue-500 transition-colors"
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 p-3 outline-none focus:border-stone-400 transition-colors text-stone-700"
               >
                 <option value="Tümü">Tümü</option>
                 <option value="Sedan">Sedan</option>
@@ -83,11 +46,11 @@ export default function CarsPage() {
             </div>
             
             <div className="flex-1 w-full">
-              <label className="block text-sm font-bold text-gray-700 mb-2">Kişi Sayısı</label>
+              <label className="block text-sm font-medium text-stone-700 mb-2">Kişi Sayısı</label>
               <select 
                 value={filterCapacity} 
                 onChange={(e) => setFilterCapacity(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 outline-none focus:border-blue-500 transition-colors"
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 p-3 outline-none focus:border-stone-400 transition-colors text-stone-700"
               >
                 <option value="Tümü">Tümü</option>
                 <option value="4 Kişilik">4 Kişilik</option>
@@ -97,9 +60,9 @@ export default function CarsPage() {
             </div>
             
             <div className="flex-1 w-full">
-              <label className="flex justify-between text-sm font-bold text-gray-700 mb-2">
+              <label className="flex justify-between text-sm font-medium text-stone-700 mb-2">
                 <span>Maksimum Bütçe</span>
-                <span className="text-blue-600">₺{maxBudget}</span>
+                <span className="text-stone-900 font-semibold">₺{maxBudget}</span>
               </label>
               <input 
                 type="range" 
@@ -108,7 +71,7 @@ export default function CarsPage() {
                 step="500"
                 value={maxBudget}
                 onChange={(e) => setMaxBudget(Number(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-stone-800"
               />
             </div>
             
@@ -118,9 +81,9 @@ export default function CarsPage() {
                   type="checkbox" 
                   checked={onlyAvailable}
                   onChange={(e) => setOnlyAvailable(e.target.checked)}
-                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  className="w-5 h-5 rounded border-stone-300 text-stone-800 focus:ring-stone-500 cursor-pointer accent-stone-800"
                 />
-                <span className="text-sm font-bold text-gray-700">Sadece Kiralamaya Uygun Olanlar</span>
+                <span className="text-sm font-medium text-stone-700">Sadece Kiralamaya Uygun Olanlar</span>
               </label>
             </div>
           </div>
@@ -128,42 +91,37 @@ export default function CarsPage() {
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-stone-800 border-t-transparent"></div>
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-16 text-center shadow-sm">
+            <h3 className="text-xl font-medium text-red-800">{error}</h3>
           </div>
         ) : carList.length === 0 ? (
-          <div className="rounded-3xl border border-slate-200 bg-white p-16 text-center shadow-lg">
-            <h3 className="text-xl font-bold text-gray-900">
+          <div className="rounded-3xl border border-stone-200 bg-white p-16 text-center shadow-sm">
+            <h3 className="text-xl font-medium text-stone-900">
               Henüz araç yüklenmedi
             </h3>
-            <p className="mt-2 text-gray-500">
-              Veritabanında gösterilecek araç bulunamadı. Lütfen ana sayfadan veri yüklemesi yapın.
+            <p className="mt-2 text-stone-500">
+              Veritabanında gösterilecek araç bulunamadı.
             </p>
           </div>
         ) : (() => {
-          // Filtreleme Mantığı
-          const filteredCars = carList.filter(car => {
-            const typeMatch = filterType === "Tümü" || car.type === filterType;
-            
-            const capStr = filterCapacity === "Tümü" ? "Tümü" : 
-                           filterCapacity === "4 Kişilik" ? 4 : 
-                           filterCapacity === "5 Kişilik" ? 5 : 7;
-                           
-            const capacityMatch = filterCapacity === "Tümü" || 
-                                  (capStr === 7 ? (car.capacity || 0) >= 7 : (car.capacity === capStr));
-            
-            const budgetMatch = car.pricePerDay <= maxBudget;
-            const availabilityMatch = !onlyAvailable || car.isAvailable;
-          
-            return typeMatch && capacityMatch && budgetMatch && availabilityMatch;
+          // Servis üzerinden filtreleme Mantığı
+          const filteredCars = carService.filterCars(carList, {
+            type: filterType,
+            capacity: filterCapacity,
+            maxBudget,
+            onlyAvailable
           });
 
           if (filteredCars.length === 0) {
             return (
-              <div className="rounded-3xl border border-slate-200 bg-white p-16 text-center shadow-lg">
-                <h3 className="text-xl font-bold text-gray-900">
+              <div className="rounded-3xl border border-stone-200 bg-white p-16 text-center shadow-sm">
+                <h3 className="text-xl font-medium text-stone-900">
                   Aradığınız kriterlere uygun araç bulunamadı.
                 </h3>
-                <p className="mt-2 text-gray-500">
+                <p className="mt-2 text-stone-500">
                   Lütfen filtreleri değiştirerek tekrar deneyin.
                 </p>
                 <button 
@@ -173,7 +131,7 @@ export default function CarsPage() {
                     setMaxBudget(10000);
                     setOnlyAvailable(false);
                   }}
-                  className="mt-6 rounded-xl bg-slate-100 px-6 py-3 font-bold text-slate-700 transition hover:bg-slate-200"
+                  className="mt-6 rounded-full border border-stone-800 bg-transparent px-6 py-2.5 text-sm font-medium text-stone-800 transition-colors hover:bg-stone-800 hover:text-[#F7F5F0]"
                 >
                   Filtreleri Temizle
                 </button>
@@ -194,6 +152,9 @@ export default function CarsPage() {
                   transmission={car.transmission}
                   pricePerDay={car.pricePerDay}
                   image={car.image}
+                  type={car.type}
+                  capacity={car.capacity}
+                  isAvailable={car.isAvailable}
                 />
               ))}
             </div>

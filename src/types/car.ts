@@ -22,5 +22,6 @@ export interface Rental {
   totalPrice: number;
   status: string;
   receiptInfo?: string;
+  createdAt?: string;
   carDetails?: Car;
 }
