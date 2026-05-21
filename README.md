@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Demir Rent - Premium Araç Kiralama Sistemi
 
-## Getting Started
+## Açıklama
+Demir Rent, şık ve bohem tasarımıyla kullanıcılara premium bir araç kiralama deneyimi sunan modern bir web uygulamasıdır. Kullanıcılar, geniş araç yelpazesini gelişmiş filtreleme seçenekleriyle inceleyebilir, kolayca kiralama talebi oluşturabilir ve Havale/EFT akışı ile ödemelerini bildirebilirler. Yönetim tarafında ise yetkili hesaplar, yeni araçlar ekleyebilir ve gelen rezervasyon/ödeme taleplerini onaylayabilirler.
 
-First, run the development server:
+### Öne Çıkan Özellikler
+- **Kullanıcı Yetkilendirmesi (Auth):** Firebase Authentication ile güvenli giriş, kayıt ve oturum yönetimi.
+- **Admin Paneli:** Sadece belirli yetkilere sahip yöneticilerin erişebildiği araç ekleme ve sipariş yönetimi ekranı.
+- **Havale / EFT Akışı:** Kiralama adımında, kullanıcıdan dekont referans numarası talep ederek siparişi "onay bekliyor" durumuna alma özelliği.
+- **Gelişmiş Filtreleme:** Araçlar sayfasında marka, araç tipi (SUV, Sedan vb.), bütçe ve uygunluk durumuna göre gerçek zamanlı çalışan modern filtreleme paneli.
+- **Premium, Bohem Arayüz:** Tailwind CSS ile geliştirilmiş, yumuşak toprak tonlarına ve pürüzsüz animasyonlara sahip (glassmorphism ve akıcı geçişler) minimalist tasarım.
+- **Siparişlerim:** Kullanıcıların kendi kiralama geçmişlerini ve sipariş durumlarını takip edebileceği özel sayfa.
 
+## Teknolojiler
+- **Framework:** Next.js (App Router, React 18)
+- **Stil & Arayüz:** Tailwind CSS, Lucide React (İkonlar)
+- **Veritabanı & Backend:** Firebase (Firestore)
+- **Kimlik Doğrulama:** Firebase Auth
+
+## Kurulum Adımları
+
+### Gereksinimler
+- Node.js (v18 veya üzeri)
+- NPM veya Yarn
+- Aktif bir Firebase projesi
+
+### 1. Kurulum (Git Clone)
+Projeyi kendi bilgisayarınıza indirmek için terminalinizde aşağıdaki komutu çalıştırın:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd car-rental-system
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Çevresel Değişkenler (Environment Variables)
+Projenin Firebase ile iletişim kurabilmesi için API anahtarlarına ihtiyacı vardır. 
+Ana dizinde bulunan `.env.example` dosyasının bir kopyasını oluşturup adını `.env.local` yapın:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Oluşturduğunuz `.env.local` dosyasının içindeki boş alanları, Firebase konsolundan (Proje Ayarları > Web Uygulaması bölümünden) alacağınız bilgilerle doldurun.
 
-## Learn More
+> **Güvenlik Notu:** Hassas verilerinizi barındıran `.env`, `.env.local` gibi dosyalar KESİNLİKLE GitHub'a yüklenmemelidir. Bu projedeki `.gitignore` dosyası, hassas bilgilerin kazara push edilmesini engellemek için doğru şekilde yapılandırılmıştır. Lütfen güvenliği ihlal etmemek adına `.env.local` dosyasının hariç tutulduğundan emin olun.
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Projeyi Başlatma
+Gerekli bağımlılıkları yükledikten ve çevresel değişkenleri ayarladıktan sonra yerel sunucuyu başlatmak için:
+```bash
+npm run dev
+```
+Uygulama başarıyla derlendikten sonra tarayıcınızda `http://localhost:3000` adresine giderek sistemi inceleyebilirsiniz.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+*Demir Rent - Zarif bir sürüş deneyimi.*
