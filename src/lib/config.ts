@@ -1,6 +1,5 @@
 // Read env vars with explicit property access so Next.js can inline them
-// at build/dev time for client bundles. Using dynamic keys (process.env[name])
-// prevents proper inlining and leads to undefined in the browser.
+// at build/dev time for client bundles.
 export const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '';
 export const FIREBASE_AUTH_DOMAIN = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? '';
 export const FIREBASE_PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? '';
@@ -21,16 +20,26 @@ export const FIREBASE_CONFIG = {
 
 export default FIREBASE_CONFIG;
 
-// Helper to validate whether required Firebase env vars are present at runtime.
+const requiredEntries = [
+  ['NEXT_PUBLIC_FIREBASE_API_KEY', FIREBASE_API_KEY],
+  ['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', FIREBASE_AUTH_DOMAIN],
+  ['NEXT_PUBLIC_FIREBASE_PROJECT_ID', FIREBASE_PROJECT_ID],
+  ['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET', FIREBASE_STORAGE_BUCKET],
+  ['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID', FIREBASE_MESSAGING_SENDER_ID],
+  ['NEXT_PUBLIC_FIREBASE_APP_ID', FIREBASE_APP_ID],
+];
+
 export function validateFirebaseConfig(): { ok: boolean; missing: string[] } {
-  const entries = [
-    ['NEXT_PUBLIC_FIREBASE_API_KEY', FIREBASE_API_KEY],
-    ['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', FIREBASE_AUTH_DOMAIN],
-    ['NEXT_PUBLIC_FIREBASE_PROJECT_ID', FIREBASE_PROJECT_ID],
-    ['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET', FIREBASE_STORAGE_BUCKET],
-    ['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID', FIREBASE_MESSAGING_SENDER_ID],
-    ['NEXT_PUBLIC_FIREBASE_APP_ID', FIREBASE_APP_ID],
-  ];
-  const missing = entries.filter(([, v]) => !v).map(([k]) => k);
+  const missing = requiredEntries.filter(([, value]) => !value).map(([key]) => key);
   return { ok: missing.length === 0, missing };
+}
+
+export function assertFirebaseConfig(): void {
+  const { missing } = validateFirebaseConfig();
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing Firebase environment variables: ${missing.join(', ')}. ` +
+      `Make sure .env.local contains NEXT_PUBLIC_FIREBASE_* values and restart the dev server.`
+    );
+  }
 }
