@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 import { auth } from "@/lib/firebase"; 
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -19,24 +21,37 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      if (!auth) {
+        setError("Sistem şu an kullanılamıyor. Lütfen daha sonra tekrar deneyin.");
+        toast.error("Sistem şu an kullanılamıyor.");
+        setLoading(false);
+        return;
+      }
       console.log("1. Giriş isteği gönderiliyor...");
       await signInWithEmailAndPassword(auth, email, password);
       console.log("2. Giriş başarılı!");
-      
-      alert("Giriş başarılı! Araçlar sayfasına yönlendiriliyorsunuz.");
-      
-      router.push("/cars"); 
-      
-      setTimeout(() => {
-        window.location.href = "/cars";
-      }, 1000);
+      router.push("/cars");
+      toast.success("Giriş başarılı! Yönlendiriliyorsunuz...");
 
-    } catch (err: any) {
-      console.error("Giriş hatası:", err.code);
-      if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
-        setError("E-posta veya şifre hatalı. Lütfen tekrar deneyin.");
-      } else {
+    } catch (err: unknown) {
+      // eslint-disable-next-line no-console
+      console.error("Giriş hatası:", err);
+      if (err instanceof FirebaseError) {
+        const code = err.code;
+        if (code === "auth/invalid-credential" || code === "auth/user-not-found" || code === "auth/wrong-password") {
+          setError("E-posta veya şifre hatalı. Lütfen tekrar deneyin.");
+          toast.error("E-posta veya şifre hatalı.");
+        } else {
+          setError(err.message);
+          toast.error(err.message);
+        }
+      } else if (err instanceof Error) {
         setError("Giriş yapılamadı: " + err.message);
+        toast.error(err.message);
+      } else {
+        const s = String(err);
+        setError(s);
+        toast.error(s);
       }
       setLoading(false);
     }

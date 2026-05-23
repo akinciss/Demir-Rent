@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { rolesRepository } from "@/repositories/rolesRepository";
 import { ShieldCheck, PlusCircle, CheckCircle, RefreshCcw, Settings, Trash2, Car } from "lucide-react";
 import { adminService } from "@/services/adminService";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -11,24 +12,47 @@ import { carRepository } from "@/repositories/carRepository";
 import { useCars } from "@/hooks/useCars";
 import { motion } from "framer-motion";
 import type { Rental } from "@/types/car";
+import toast from "react-hot-toast";
+import Image from "next/image";
 
 export default function AdminPage() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const { pendingRentals, loading: loadingRentals, refetch, approveRental } = useAdmin();
   const { cars, loading: loadingCars, refetch: refetchCars } = useCars();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user && user.email === "eyleniyoruz.test01@gmail.com") {
-        setIsAdmin(true);
-      } else {
+    if (!auth) {
+      setCheckingAuth(false);
+      setIsAdmin(false);
+      setTimeout(() => router.push("/"), 2000);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      try {
+        if (user) {
+          const roles = await rolesRepository.getRoleByUserId(user.uid);
+          if (roles && roles.admin) {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
+            setTimeout(() => router.push("/"), 2000);
+          }
+        } else {
+          setIsAdmin(false);
+          setTimeout(() => router.push("/"), 2000);
+        }
+      } catch (err) {
+        console.error(err);
         setIsAdmin(false);
         setTimeout(() => router.push("/"), 2000);
+      } finally {
+        setCheckingAuth(false);
       }
-      setCheckingAuth(false);
     });
     return () => unsubscribe();
   }, [router]);
@@ -55,32 +79,40 @@ export default function AdminPage() {
         type: carData.type, isAvailable: true,
       });
       setSuccessMsg("Araç başarıyla eklendi!");
+      toast.success("Araç başarıyla eklendi!");
       setCarData({ brand: "", model: "", year: new Date().getFullYear(), fuel: "Benzin", transmission: "Otomatik", pricePerDay: 0, image: "", seats: 5, type: "Sedan" });
       setShowForm(false);
       refetchCars();
       setTimeout(() => setSuccessMsg(""), 3000);
-    } catch (error: any) {
-      alert(error.message || "Araç eklenirken bir hata oluştu.");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      setErrorMsg(message || "Araç eklenirken bir hata oluştu.");
+      toast.error(message || "Araç eklenirken bir hata oluştu.");
     } finally {
       setIsAdding(false);
     }
   };
 
   const handleDeleteCar = async (carId: string | number) => {
-    if (!confirm("Bu aracı silmek istediğinizden emin misiniz?")) return;
     try {
       await carRepository.deleteCar(String(carId));
       refetchCars();
-    } catch {
-      alert("Araç silinirken hata oluştu.");
+      toast.success("Araç silindi.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setErrorMsg(message || "Araç silinirken hata oluştu.");
+      toast.error(message || "Araç silinirken hata oluştu.");
     }
   };
 
   const handleApprove = async (rentalId: string) => {
     try {
       await approveRental(rentalId);
-    } catch {
-      alert("Onaylanırken hata oluştu.");
+    } catch (err) {
+      setErrorMsg("Onaylanırken hata oluştu.");
+      toast.error("Onaylanırken hata oluştu.");
+      // eslint-disable-next-line no-console
+      console.error(err);
     }
   };
 
@@ -116,6 +148,17 @@ export default function AdminPage() {
             Yönetim Paneli
           </h1>
         </div>
+
+        {errorMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium"
+            style={{ backgroundColor: "rgba(255,0,0,0.06)", color: "#c92a2a" }}
+          >
+            {errorMsg}
+          </motion.div>
+        )}
 
         {successMsg && (
           <motion.div
@@ -234,7 +277,7 @@ export default function AdminPage() {
                       style={{ border: "1px solid var(--color-border)" }}
                     >
                       <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg">
-                        <img src={car.image} alt={car.brand} className="h-full w-full object-cover" />
+                        <Image src={car.image} alt={car.brand} width={80} height={56} className="h-full w-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate" style={{ color: "var(--color-text)" }}>{car.brand} {car.model}</p>
@@ -293,7 +336,7 @@ export default function AdminPage() {
                       {rental.carDetails && (
                         <div className="flex items-center gap-3 pb-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
                           <div className="h-10 w-14 overflow-hidden rounded-lg shrink-0">
-                            <img src={rental.carDetails.image} alt={rental.carDetails.brand} className="h-full w-full object-cover" />
+                            <Image src={rental.carDetails.image} alt={rental.carDetails.brand} width={56} height={40} className="h-full w-full object-cover" />
                           </div>
                           <div>
                             <p className="font-medium text-sm" style={{ color: "var(--color-text)" }}>{rental.carDetails.brand} {rental.carDetails.model}</p>

@@ -6,6 +6,7 @@ import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { ClipboardList, CalendarDays, Search, Car } from "lucide-react";
 import { useRentals } from "@/hooks/useRentals";
+import Image from "next/image";
 
 export default function MyRentalsPage() {
   const router = useRouter();
@@ -13,6 +14,11 @@ export default function MyRentalsPage() {
   const { rentals, loading, error } = useRentals();
 
   useEffect(() => {
+    if (!auth) {
+      router.push("/login");
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
         router.push("/login");
@@ -69,8 +75,8 @@ export default function MyRentalsPage() {
                 <div className="grid md:grid-cols-4 gap-6 p-6">
                   {/* Araç Görseli */}
                   <div className="col-span-1 h-32 md:h-full bg-stone-100 rounded-xl overflow-hidden shrink-0">
-                    {rental.carDetails ? (
-                      <img src={rental.carDetails.image} alt={rental.carDetails.brand} className="h-full w-full object-cover" />
+                      {rental.carDetails ? (
+                      <Image src={rental.carDetails.image} alt={rental.carDetails.brand} width={320} height={200} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-stone-400">Görsel Yok</div>
                     )}

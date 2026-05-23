@@ -21,6 +21,11 @@ export default function Navbar() {
   const pathname = usePathname();
 
   useEffect(() => {
+    if (!auth) {
+      setUser(null);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
@@ -38,6 +43,7 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     try {
+      if (!auth) return;
       await signOut(auth);
       router.push("/");
     } catch (error) {

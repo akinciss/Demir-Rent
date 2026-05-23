@@ -1,12 +1,28 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { FIREBASE_CONFIG, assertFirebaseConfig } from "./config";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { getAuth, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
+import { FIREBASE_CONFIG, validateFirebaseConfig } from "./config";
 
-assertFirebaseConfig();
+let app: FirebaseApp | undefined;
+let auth: Auth | undefined;
+let db: Firestore | undefined;
+let isFirebaseInitialized = false;
 
-const app = !getApps().length ? initializeApp(FIREBASE_CONFIG) : getApp();
+if (validateFirebaseConfig().ok) {
+	try {
+		app = !getApps().length ? initializeApp(FIREBASE_CONFIG) : getApp();
+		auth = getAuth(app);
+		db = getFirestore(app);
+		isFirebaseInitialized = true;
+	} catch (err) {
+		// If initialization fails, don't throw — let the app render a graceful fallback.
+		// eslint-disable-next-line no-console
+		console.error("Firebase initialization failed:", err);
+		isFirebaseInitialized = false;
+	}
+} else {
+	// eslint-disable-next-line no-console
+	console.warn("Firebase config is invalid or incomplete — skipping initialization.");
+}
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const firebaseApp = app;
+export { auth, db, isFirebaseInitialized, app as firebaseApp };

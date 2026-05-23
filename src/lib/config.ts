@@ -37,9 +37,17 @@ export function validateFirebaseConfig(): { ok: boolean; missing: string[] } {
 export function assertFirebaseConfig(): void {
   const { missing } = validateFirebaseConfig();
   if (missing.length > 0) {
-    throw new Error(
+    // Don't throw here to allow the application to present a graceful fallback UI
+    // during build/dev/runtime when env vars are not present. Callers may still
+    // inspect `validateFirebaseConfig()` to decide behavior.
+    // eslint-disable-next-line no-console
+    console.warn(
       `Missing Firebase environment variables: ${missing.join(', ')}. ` +
-      `Make sure .env.local contains NEXT_PUBLIC_FIREBASE_* values and restart the dev server.`
+      `Proceeding without initializing Firebase so the app can show a maintenance fallback.`
     );
   }
+}
+
+export function isFirebaseConfigValid(): boolean {
+  return validateFirebaseConfig().ok;
 }

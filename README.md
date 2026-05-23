@@ -53,3 +53,55 @@ Uygulama başarıyla derlendikten sonra tarayıcınızda `http://localhost:3000`
 
 ---
 *Demir Rent - Zarif bir sürüş deneyimi.*
+
+## Migration & Tests
+
+- Run migrations to fix malformed documents (requires Firebase service account):
+
+```bash
+# export GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_SERVICE_ACCOUNT
+node -r ts-node/register scripts/migrations/fixCars.ts
+```
+
+- Run unit tests (uses `vitest`):
+
+```bash
+npm install
+npm test
+```
+
+## Admin provisioning CLI
+
+To simplify giving a user admin privileges without opening the Firestore console, a small Node.js CLI script was added at `scripts/makeAdmin.js`.
+
+How it works:
+
+- It uses a Firebase service account JSON (recommended) to authenticate via the Admin SDK.
+- It writes `{ admin: true }` to `roles/{UID}` in Firestore (merge mode).
+
+Setup and usage:
+
+1. Create a Firebase service account with at least the `Cloud Datastore Owner` or `Firestore Admin` role, and download the JSON key.
+
+2. Run the script with the service account. You can either set the path to the JSON file:
+
+```bash
+FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/service-account.json npm run make-admin -- <UID>
+```
+
+Or provide the JSON itself via an environment variable (less recommended):
+
+```bash
+FIREBASE_SERVICE_ACCOUNT='{"type":...}' npm run make-admin -- <UID>
+```
+
+3. The script will prompt for confirmation. To skip the prompt (e.g., in CI), pass `--yes` after the UID:
+
+```bash
+FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/service-account.json npm run make-admin -- <UID> --yes
+```
+
+Notes:
+- The script sets `roles/{UID}.admin = true` using `merge: true` so it won't overwrite other role fields.
+- Keep your service account JSON secure; do not commit it to source control.
+

@@ -6,7 +6,8 @@ import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Key } from "lucide-react";
 import { motion } from "framer-motion";
-
+import Image from "next/image";
+import toast from "react-hot-toast";
 type CarCardProps = {
   id?: string | number;
   brand: string;
@@ -38,6 +39,12 @@ export default function CarCard({
   const router = useRouter();
 
   useEffect(() => {
+    if (!auth) {
+      // If auth isn't initialized, mark as loaded to avoid blocking UI
+      setUserLoaded(true);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, () => {
       setUserLoaded(true);
     });
@@ -45,11 +52,11 @@ export default function CarCard({
   }, []);
 
   const handleRent = () => {
-    if (auth.currentUser) {
+    if (auth?.currentUser) {
       if (id) {
         router.push(`/rent/${id}`);
       } else {
-        alert("Araç ID'si bulunamadı.");
+        toast.error("Araç ID'si bulunamadı.");
       }
       return;
     }
@@ -67,10 +74,12 @@ export default function CarCard({
     >
       {/* Image */}
       <div className="relative h-52 w-full shrink-0 overflow-hidden">
-        <img
+        <Image
           src={image}
           alt={brand}
-          className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
+          fill
+          sizes="(max-width: 768px) 100vw, 33vw"
+          className="object-cover transition-transform duration-700 hover:scale-105"
         />
         {/* Availability Badge */}
         {isAvailable !== undefined && (
@@ -152,7 +161,7 @@ export default function CarCard({
           <motion.button
             whileTap={{ scale: 0.96 }}
             onClick={handleRent}
-            disabled={!userLoaded && !auth.currentUser}
+            disabled={!userLoaded && !auth?.currentUser}
             className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition-all duration-500 hover:opacity-85 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
             style={{ backgroundColor: "var(--color-vizon)" }}
           >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -9,6 +9,8 @@ import { CreditCard, AlertCircle, CheckCircle, Info, Calendar } from "lucide-rea
 import { carService } from "@/services/carService";
 import { rentalService, type PricingBreakdown } from "@/services/rentalService";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import toast from "react-hot-toast";
 
 export default function RentPage() {
   const params = useParams();
@@ -18,7 +20,6 @@ export default function RentPage() {
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [pricing, setPricing] = useState<PricingBreakdown | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiptInfo, setReceiptInfo] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -32,6 +33,11 @@ export default function RentPage() {
 
   // Auth guard
   useEffect(() => {
+    if (!auth) {
+      router.push("/login");
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) router.push("/login");
     });
@@ -60,60 +66,40 @@ export default function RentPage() {
     rentalService.getOccupancyForDays(params.id as string, 30).then(setOccupancy);
   }, [params.id]);
 
-  // Dynamic pricing calculation
-  useEffect(() => {
-    if (startDate && endDate && car) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(0, 0, 0, 0);
-
-      if (end >= start) {
-        const breakdown = rentalService.calculateDynamicPrice(car.pricePerDay, startDate, endDate);
-        setPricing(breakdown);
-      } else {
-        setPricing(null);
-      }
-    } else {
-      setPricing(null);
-      setIsAvailable(null);
-    }
+  // Derived pricing: compute on render using useMemo instead of storing in state
+  const pricing = useMemo<PricingBreakdown | null>(() => {
+    if (!startDate || !endDate || !car) return null;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    if (end < start) return null;
+    return rentalService.calculateDynamicPrice(car.pricePerDay, startDate, endDate);
   }, [startDate, endDate, car]);
 
-  // Availability check (debounced)
-  useEffect(() => {
-    if (!startDate || !endDate || !params.id || !pricing) {
+  // Availability check moved to an explicit event handler to avoid unnecessary effects
+  const handleCheckAvailability = useCallback(async () => {
+    if (!params.id || !startDate || !endDate) return;
+    setIsCheckingAvailability(true);
+    try {
+      const result = await rentalService.checkDateAvailability(params.id as string, startDate, endDate);
+      setIsAvailable(result.available);
+    } catch {
       setIsAvailable(null);
-      return;
+    } finally {
+      setIsCheckingAvailability(false);
     }
-
-    const timeout = setTimeout(async () => {
-      setIsCheckingAvailability(true);
-      try {
-        const result = await rentalService.checkDateAvailability(
-          params.id as string,
-          startDate,
-          endDate
-        );
-        setIsAvailable(result.available);
-      } catch {
-        setIsAvailable(null);
-      } finally {
-        setIsCheckingAvailability(false);
-      }
-    }, 600);
-
-    return () => clearTimeout(timeout);
-  }, [startDate, endDate, params.id, pricing]);
+  }, [params.id, startDate, endDate]);
 
   const handleConfirmRent = async () => {
-    if (!auth.currentUser || !params.id) return;
+    const currentUser = auth?.currentUser;
+    if (!currentUser || !params.id) return;
     if (!startDate || !endDate || !pricing || !receiptInfo.trim() || !isAvailable) return;
 
     setIsSubmitting(true);
     try {
       await rentalService.createRental({
-        userId: auth.currentUser.uid,
+        userId: currentUser.uid,
         carId: params.id as string,
         startDate,
         endDate,
@@ -124,8 +110,9 @@ export default function RentPage() {
       });
       setSubmitted(true);
       setTimeout(() => router.push("/"), 2500);
-    } catch (error: any) {
-      alert(error.message || "Kiralama sırasında bir hata oluştu.");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(message || "Kiralama sırasında bir hata oluştu.");
       setIsSubmitting(false);
     }
   };
@@ -187,11 +174,7 @@ export default function RentPage() {
               <div className="grid md:grid-cols-2">
                 {/* Car Image */}
                 <div className="relative h-72 md:h-full overflow-hidden">
-                  <img
-                    src={car.image}
-                    alt={car.brand}
-                    className="h-full w-full object-cover"
-                  />
+                  <Image src={car.image} alt={car.brand} fill className="h-full w-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
                   <div className="absolute bottom-5 left-5">
                     <h1
@@ -206,6 +189,20 @@ export default function RentPage() {
                       <span>{car.fuel}</span>
                       <span>·</span>
                       <span>{car.transmission}</span>
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleCheckAvailability}
+                        disabled={!startDate || !endDate || isCheckingAvailability}
+                        className="rounded-full px-4 py-2 text-sm font-medium text-white"
+                        style={{ backgroundColor: "var(--color-vizon)" }}
+                      >
+                        {isCheckingAvailability ? "Kontrol ediliyor..." : "Müsaitlik Kontrol Et"}
+                      </button>
+                      {isAvailable === true && <span className="text-sm text-emerald-600">Müsait</span>}
+                      {isAvailable === false && <span className="text-sm text-rose-600">Dolu</span>}
                     </div>
                   </div>
                 </div>
@@ -224,7 +221,7 @@ export default function RentPage() {
                           className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-colors"
                           style={{ borderColor: "var(--color-border)", backgroundColor: "rgba(255,255,255,0.6)", color: "var(--color-text)" }}
                           value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
+                          onChange={(e) => { setStartDate(e.target.value); setIsAvailable(null); }}
                           min={today}
                         />
                       </div>
@@ -237,7 +234,7 @@ export default function RentPage() {
                           className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-colors"
                           style={{ borderColor: "var(--color-border)", backgroundColor: "rgba(255,255,255,0.6)", color: "var(--color-text)" }}
                           value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
+                          onChange={(e) => { setEndDate(e.target.value); setIsAvailable(null); }}
                           min={startDate || today}
                         />
                       </div>

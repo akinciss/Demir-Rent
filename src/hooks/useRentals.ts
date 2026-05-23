@@ -12,14 +12,16 @@ export function useRentals() {
     try {
       setLoading(true);
       setError(null);
-      if (!auth.currentUser) {
+      if (!auth?.currentUser) {
         setRentals([]);
         return;
       }
       const data = await rentalService.getUserRentalsWithCarDetails(auth.currentUser.uid);
       setRentals(data);
-    } catch (err: any) {
-      setError(err.message || "Siparişler yüklenirken hata oluştu.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "Siparişler yüklenirken hata oluştu.");
+      // eslint-disable-next-line no-console
       console.error(err);
     } finally {
       setLoading(false);
@@ -28,7 +30,7 @@ export function useRentals() {
 
   useEffect(() => {
     // Only fetch if currentUser is available, usually components using this hook ensure auth state
-    if (auth.currentUser) {
+    if (auth?.currentUser) {
       fetchUserRentals();
     } else {
       setLoading(false);

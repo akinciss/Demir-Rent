@@ -13,8 +13,10 @@ export function useCars() {
       setError(null);
       const data = await carService.getCars();
       setCars(data);
-    } catch (err: any) {
-      setError(err.message || "Araçlar yüklenirken bir hata oluştu.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "Araçlar yüklenirken bir hata oluştu.");
+      // eslint-disable-next-line no-console
       console.error(err);
     } finally {
       setLoading(false);

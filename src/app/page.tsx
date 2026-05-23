@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import CarCard from "../components/CarCard";
 import { useCars } from "@/hooks/useCars";
 import { Search, MapPin, Calendar, ChevronDown } from "lucide-react";
+import Image from "next/image";
 
 const tabs = [
   { id: "yeni", label: "Son Eklenenler", desc: "Koleksiyonumuzun en yeni üyeleriyle tanışın." },
@@ -58,9 +59,11 @@ export default function HomePage() {
       <section className="relative flex min-h-[92vh] flex-col items-center justify-center overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
-          <img
+          <Image
             src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?q=80&w=1920&auto=format&fit=crop"
             alt="Premium araç"
+            fill
+            priority
             className="h-full w-full object-cover object-center"
           />
           {/* Layered gradient overlay */}

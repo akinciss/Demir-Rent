@@ -13,8 +13,10 @@ export function useAdmin() {
       setError(null);
       const data = await adminService.getPendingRentalsWithDetails();
       setPendingRentals(data);
-    } catch (err: any) {
-      setError(err.message || "Bekleyen siparişler yüklenirken hata oluştu.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "Bekleyen siparişler yüklenirken hata oluştu.");
+      // eslint-disable-next-line no-console
       console.error(err);
     } finally {
       setLoading(false);
@@ -27,9 +29,11 @@ export function useAdmin() {
       // Remove from pending list locally for instant UI update
       setPendingRentals(prev => prev.filter(r => r.id !== rentalId));
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // eslint-disable-next-line no-console
       console.error(err);
-      throw new Error(err.message || "Onay işlemi başarısız.");
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(message || "Onay işlemi başarısız.");
     }
   };
 

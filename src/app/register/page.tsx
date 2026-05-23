@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 import { auth } from "@/lib/firebase"; 
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -18,34 +20,43 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      if (!auth) {
+        setError("Sistem şu an kullanılamıyor. Lütfen daha sonra tekrar deneyin.");
+        toast.error("Sistem şu an kullanılamıyor.");
+        setLoading(false);
+        return;
+      }
       console.log("1. Firebase kayıt isteği gönderiliyor...", email);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       console.log("2. Firebase kayıt başarılı! Kullanıcı:", userCredential.user);
-
-      alert("Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz.");
-      
-      console.log("3. Next.js Router ile yönlendirme deneniyor...");
       router.push("/login");
+      toast.success("Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...");
 
-      // Eğer Next.js Router kilitlendiyse ve 1 saniye içinde yönlendirmezse:
-      // Tarayıcıyı doğrudan yönlendiren kesin çözümü (fallback) devreye sokuyoruz.
-      setTimeout(() => {
-        console.log("4. Router tepki vermedi, window.location devreye giriyor...");
-        window.location.href = "/login";
-      }, 1000);
-
-    } catch (err: any) {
-      console.error("Kayıt sırasında hata yakalandı:", err.code, err.message);
-      
-      // Kullanıcıya daha temiz hata mesajları gösterelim
-      if (err.code === "auth/email-already-in-use") {
-        setError("Bu e-posta adresi zaten kullanımda! Lütfen başka bir e-posta deneyin.");
-      } else if (err.code === "auth/weak-password") {
-        setError("Şifre çok zayıf. En az 6 karakter olmalıdır.");
-      } else if (err.code === "auth/invalid-email") {
-        setError("Geçersiz bir e-posta adresi girdiniz.");
-      } else {
+    } catch (err: unknown) {
+      // eslint-disable-next-line no-console
+      console.error("Kayıt sırasında hata yakalandı:", err);
+      if (err instanceof FirebaseError) {
+        const code = err.code;
+        if (code === "auth/email-already-in-use") {
+          setError("Bu e-posta adresi zaten kullanımda! Lütfen başka bir e-posta deneyin.");
+          toast.error("Bu e-posta adresi zaten kullanımda");
+        } else if (code === "auth/weak-password") {
+          setError("Şifre çok zayıf. En az 6 karakter olmalıdır.");
+          toast.error("Şifre çok zayıf");
+        } else if (code === "auth/invalid-email") {
+          setError("Geçersiz bir e-posta adresi girdiniz.");
+          toast.error("Geçersiz e-posta");
+        } else {
+          setError(err.message);
+          toast.error(err.message);
+        }
+      } else if (err instanceof Error) {
         setError(err.message);
+        toast.error(err.message);
+      } else {
+        const s = String(err);
+        setError(s);
+        toast.error(s);
       }
     } finally {
       setLoading(false);
