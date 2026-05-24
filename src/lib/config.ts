@@ -51,3 +51,11 @@ export function assertFirebaseConfig(): void {
 export function isFirebaseConfigValid(): boolean {
   return validateFirebaseConfig().ok;
 }
+
+/**
+ * Demo mode: Firebase config eksikse true döner.
+ * Bu modda uygulama mock data ile çalışır, crash etmez.
+ */
+export function isDemoMode(): boolean {
+  return !validateFirebaseConfig().ok;
+}

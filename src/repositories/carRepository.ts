@@ -1,14 +1,27 @@
 import { db, isFirebaseInitialized } from "@/lib/firebaseClient";
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, type Firestore } from "firebase/firestore";
 import { carConverter } from "@/lib/converters";
-import { validateFirebaseConfig } from "@/lib/config";
+import { isDemoMode } from "@/lib/config";
+import { mockCars } from "@/data/mockCars";
 import type { Car } from "@/types/car";
 
 const COLLECTION_NAME = "cars";
 
-export const carRepository = {
+// ── Data Source Interface ──────────────────────────────────────────
+
+interface CarDataSource {
+  getAllCars(): Promise<Car[]>;
+  getCarById(id: string): Promise<Car | null>;
+  addCar(carData: Omit<Car, "id">): Promise<string>;
+  updateCar(id: string, carData: Partial<Car>): Promise<void>;
+  deleteCar(id: string): Promise<void>;
+}
+
+// ── Firebase Data Source ───────────────────────────────────────────
+
+const firebaseCarDataSource: CarDataSource = {
   async getAllCars(): Promise<Car[]> {
-    if (!validateFirebaseConfig().ok || !isFirebaseInitialized) {
+    if (!isFirebaseInitialized) {
       throw new Error("FIREBASE_CONFIG_MISSING");
     }
 
@@ -31,7 +44,7 @@ export const carRepository = {
   },
 
   async getCarById(id: string): Promise<Car | null> {
-    if (!validateFirebaseConfig().ok || !isFirebaseInitialized) {
+    if (!isFirebaseInitialized) {
       throw new Error("FIREBASE_CONFIG_MISSING");
     }
 
@@ -44,7 +57,7 @@ export const carRepository = {
   },
 
   async addCar(carData: Omit<Car, "id">): Promise<string> {
-    if (!validateFirebaseConfig().ok || !isFirebaseInitialized) {
+    if (!isFirebaseInitialized) {
       throw new Error("FIREBASE_CONFIG_MISSING");
     }
 
@@ -54,7 +67,7 @@ export const carRepository = {
   },
 
   async updateCar(id: string, carData: Partial<Car>): Promise<void> {
-    if (!validateFirebaseConfig().ok || !isFirebaseInitialized) {
+    if (!isFirebaseInitialized) {
       throw new Error("FIREBASE_CONFIG_MISSING");
     }
 
@@ -63,11 +76,49 @@ export const carRepository = {
   },
 
   async deleteCar(id: string): Promise<void> {
-    if (!validateFirebaseConfig().ok || !isFirebaseInitialized) {
+    if (!isFirebaseInitialized) {
       throw new Error("FIREBASE_CONFIG_MISSING");
     }
 
     const docRef = doc(db as Firestore, COLLECTION_NAME, id).withConverter(carConverter);
     await deleteDoc(docRef);
-  }
+  },
+};
+
+// ── Mock Data Source ──────────────────────────────────────────────
+
+const mockCarDataSource: CarDataSource = {
+  async getAllCars(): Promise<Car[]> {
+    return [...mockCars];
+  },
+
+  async getCarById(id: string): Promise<Car | null> {
+    return mockCars.find((car) => String(car.id) === id) ?? null;
+  },
+
+  async addCar(): Promise<string> {
+    throw new Error("Demo modunda araç ekleme işlemi yapılamaz.");
+  },
+
+  async updateCar(): Promise<void> {
+    throw new Error("Demo modunda araç güncelleme işlemi yapılamaz.");
+  },
+
+  async deleteCar(): Promise<void> {
+    throw new Error("Demo modunda araç silme işlemi yapılamaz.");
+  },
+};
+
+// ── Exported Repository (auto-selects data source) ────────────────
+
+function getDataSource(): CarDataSource {
+  return isDemoMode() ? mockCarDataSource : firebaseCarDataSource;
+}
+
+export const carRepository: CarDataSource = {
+  getAllCars: () => getDataSource().getAllCars(),
+  getCarById: (id) => getDataSource().getCarById(id),
+  addCar: (carData) => getDataSource().addCar(carData),
+  updateCar: (id, carData) => getDataSource().updateCar(id, carData),
+  deleteCar: (id) => getDataSource().deleteCar(id),
 };

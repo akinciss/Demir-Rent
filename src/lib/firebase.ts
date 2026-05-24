@@ -1,2 +1,2 @@
 export * from "./firebaseClient";
-export { FIREBASE_CONFIG, validateFirebaseConfig } from "./config";
+export { FIREBASE_CONFIG, validateFirebaseConfig, isDemoMode } from "./config";

@@ -135,4 +135,37 @@ export const rentalService = {
       })
     );
   },
+
+  /**
+   * Slot-bazlı rezervasyon oluşturur.
+   * Server-side API route üzerinden Firestore transaction çalıştırır.
+   * Hook dışındaki bağlamlardan da çağrılabilir.
+   */
+  async reserveSlot(slotId: string, receiptInfo: string): Promise<string> {
+    const { auth } = await import("@/lib/firebase");
+    if (!auth?.currentUser) {
+      throw new Error("Giriş yapmanız gerekiyor.");
+    }
+
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch("/api/rentals/reserve", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ slotId, receiptInfo }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(
+        data.error || "Rezervasyon oluşturulurken bir hata oluştu."
+      );
+    }
+
+    return data.rentalId as string;
+  },
 };

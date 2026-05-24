@@ -13,15 +13,6 @@ export interface Car {
   isAvailable?: boolean;
 }
 
-export interface Rental {
-  id: string;
-  userId: string;
-  carId: string;
-  startDate: string;
-  endDate: string;
-  totalPrice: number;
-  status: string;
-  receiptInfo?: string;
-  createdAt?: string;
-  carDetails?: Car;
-}
+// Rental tipi src/types/rental.ts'e taşındı.
+// Mevcut importları kırmamak için re-export:
+export type { Rental } from "./rental";

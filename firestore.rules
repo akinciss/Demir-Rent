@@ -30,5 +30,11 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/roles/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.admin == true;
     }
+
+    // CarSlots collection: publicly readable, writes only via Admin SDK (server-side)
+    match /carSlots/{slotId} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }
