@@ -58,7 +58,18 @@ export const carSlotRepository = {
    */
   async getSlotsByCarId(carId: string): Promise<CarSlot[]> {
     if (isDemoMode() || !isFirebaseInitialized) {
-      return [];
+      const today = new Date();
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+      return [
+        {
+          id: `mock-slot-${carId}`,
+          carId,
+          startAt: today.toISOString().slice(0, 10),
+          endAt: nextWeek.toISOString().slice(0, 10),
+          status: "available",
+        }
+      ];
     }
 
     const slotsRef = collection(db as Firestore, COLLECTION_NAME);
@@ -75,7 +86,18 @@ export const carSlotRepository = {
    */
   async getAvailableSlotsByCarId(carId: string): Promise<CarSlot[]> {
     if (isDemoMode() || !isFirebaseInitialized) {
-      return [];
+      const today = new Date();
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+      return [
+        {
+          id: `mock-slot-${carId}`,
+          carId,
+          startAt: today.toISOString().slice(0, 10),
+          endAt: nextWeek.toISOString().slice(0, 10),
+          status: "available",
+        }
+      ];
     }
 
     const slotsRef = collection(db as Firestore, COLLECTION_NAME);

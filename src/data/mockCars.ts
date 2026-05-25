@@ -17,7 +17,7 @@ export const mockCars: Car[] = [
     image: "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
     type: "Sedan",
     capacity: 5,
-    isAvailable: true,
+    isActive: true,
   },
   {
     id: "demo-2",
@@ -31,7 +31,7 @@ export const mockCars: Car[] = [
     image: "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=1200&q=80",
     type: "Sedan",
     capacity: 5,
-    isAvailable: true,
+    isActive: true,
   },
   {
     id: "demo-3",
@@ -45,7 +45,7 @@ export const mockCars: Car[] = [
     image: "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&w=1200&q=80",
     type: "Sedan",
     capacity: 5,
-    isAvailable: true,
+    isActive: true,
   },
   {
     id: "demo-4",
@@ -59,7 +59,7 @@ export const mockCars: Car[] = [
     image: "https://images.unsplash.com/photo-1606611013016-969c19ba27d5?auto=format&fit=crop&w=1200&q=80",
     type: "SUV",
     capacity: 5,
-    isAvailable: true,
+    isActive: true,
   },
   {
     id: "demo-5",
@@ -73,7 +73,7 @@ export const mockCars: Car[] = [
     image: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
     type: "SUV",
     capacity: 5,
-    isAvailable: false,
+    isActive: false,
   },
   {
     id: "demo-6",
@@ -87,7 +87,7 @@ export const mockCars: Car[] = [
     image: "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=1200&q=80",
     type: "SUV",
     capacity: 5,
-    isAvailable: true,
+    isActive: true,
   },
   {
     id: "demo-7",
@@ -101,7 +101,7 @@ export const mockCars: Car[] = [
     image: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
     type: "Hatchback",
     capacity: 5,
-    isAvailable: true,
+    isActive: true,
   },
   {
     id: "demo-8",
@@ -115,7 +115,7 @@ export const mockCars: Car[] = [
     image: "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=1200&q=80",
     type: "Hatchback",
     capacity: 5,
-    isAvailable: true,
+    isActive: true,
   },
   {
     id: "demo-9",
@@ -129,6 +129,6 @@ export const mockCars: Car[] = [
     image: "https://images.unsplash.com/photo-1519245659620-e859806a8d7b?auto=format&fit=crop&w=1200&q=80",
     type: "SUV",
     capacity: 7,
-    isAvailable: true,
+    isActive: true,
   },
 ];

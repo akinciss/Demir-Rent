@@ -154,7 +154,7 @@ export default function CarsPage() {
                   image={car.image}
                   type={car.type}
                   capacity={car.capacity}
-                  isAvailable={car.isAvailable}
+                  isAvailable={car.isActive !== false}
                 />
               ))}
             </div>

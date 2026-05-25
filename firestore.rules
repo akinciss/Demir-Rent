@@ -2,39 +2,75 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Cars collection: publicly readable, only admins can write/update/delete
+    // ── Helper functions ──────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/roles/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.admin == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Valid rental status values
+    function isValidRentalStatus(status) {
+      return status in ["onay_bekliyor", "aktif", "reddedildi", "iptal", "tamamlandi"];
+    }
+
+    // ── Cars collection ───────────────────────────────────────────
+    // Publicly readable. Only admins can write (create/update/delete).
     match /cars/{carId} {
       allow read: if true;
-      allow create, update, delete: if request.auth != null &&
-        exists(/databases/$(database)/documents/roles/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.admin == true;
+      allow create, update, delete: if isAdmin();
     }
 
-    // Rentals collection: users can create/read their own, admins can read/update/delete any
+    // ── Rentals collection ────────────────────────────────────────
+    // - create: CLOSED on client side — all writes go through Admin SDK via
+    //           /api/rentals/reserve (which bypasses client-side rules).
+    //           Keeping `allow create: if false` prevents clients from directly
+    //           writing arbitrary rental documents with manipulated fields
+    //           (status, totalPrice, userId, carId, etc.).
+    // - read:   Users can read their own rentals; admins can read all.
+    // - update: Only admins may update (also via Admin SDK in API routes,
+    //           which bypasses rules). The rule below is a defense-in-depth
+    //           guard for any direct client update attempts.
+    // - delete: Admin only.
     match /rentals/{rentalId} {
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // No client-side create. All rental creation goes through the server API.
+      allow create: if false;
 
-      allow read: if request.auth != null && (
-        resource.data.userId == request.auth.uid ||
-        (exists(/databases/$(database)/documents/roles/$(request.auth.uid)) && get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.admin == true)
+      // Read: own rental or admin
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
       );
 
-      allow update, delete: if request.auth != null &&
-        exists(/databases/$(database)/documents/roles/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.admin == true;
+      // Update: CLOSED on client side. All status updates go through API routes.
+      allow update: if false;
+
+      // Delete: admin only
+      allow delete: if isAdmin();
     }
 
-    // Roles collection: only admins can modify/read roles (protect against privilege escalation)
-    match /roles/{roleId} {
-      allow read, write: if request.auth != null &&
-        exists(/databases/$(database)/documents/roles/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.admin == true;
-    }
-
-    // CarSlots collection: publicly readable, writes only via Admin SDK (server-side)
+    // ── CarSlots collection ───────────────────────────────────────
+    // Publicly readable (so the rent page can display available slots).
+    // All writes are performed exclusively via Admin SDK (server-side API routes).
+    // Client-side writes are completely blocked.
     match /carSlots/{slotId} {
       allow read: if true;
       allow write: if false;
+    }
+
+    // ── Roles collection ──────────────────────────────────────────
+    // Only admins can read/modify roles — prevents privilege escalation.
+    // Admin SDK (used in API routes) bypasses these rules.
+    match /roles/{roleId} {
+      allow read, write: if isAdmin();
     }
   }
 }

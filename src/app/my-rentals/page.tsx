@@ -7,6 +7,8 @@ import { onAuthStateChanged } from "firebase/auth";
 import { ClipboardList, CalendarDays, Search, Car } from "lucide-react";
 import { useRentals } from "@/hooks/useRentals";
 import Image from "next/image";
+import { safeImageSrc } from "@/lib/imageUtils";
+import { formatDate } from "@/lib/dateUtils";
 
 export default function MyRentalsPage() {
   const router = useRouter();
@@ -76,10 +78,10 @@ export default function MyRentalsPage() {
                   {/* Araç Görseli */}
                   <div className="col-span-1 h-32 md:h-full bg-stone-100 rounded-xl overflow-hidden shrink-0">
                       {rental.carDetails ? (
-                      <Image src={rental.carDetails.image} alt={rental.carDetails.brand} width={320} height={200} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-stone-400">Görsel Yok</div>
-                    )}
+                        <Image src={safeImageSrc(rental.carDetails.image)} alt={rental.carDetails.brand} width={320} height={200} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-stone-400">Görsel Yok</div>
+                      )}
                   </div>
                   
                   {/* Araç ve Tarih Detayları */}
@@ -99,7 +101,7 @@ export default function MyRentalsPage() {
                           <CalendarDays className="h-3.5 w-3.5" />
                           Alış Tarihi
                         </span>
-                        {rental.startDate}
+                        {formatDate(rental.startDate)}
                       </div>
                       <span className="text-stone-300">&rarr;</span>
                       <div className="rounded-xl bg-stone-50 px-4 py-3 border border-stone-100">
@@ -107,7 +109,7 @@ export default function MyRentalsPage() {
                           <CalendarDays className="h-3.5 w-3.5" />
                           Teslim Tarihi
                         </span>
-                        {rental.endDate}
+                        {formatDate(rental.endDate)}
                       </div>
                     </div>
                   </div>

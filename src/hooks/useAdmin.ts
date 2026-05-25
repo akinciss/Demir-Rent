@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { adminService } from "@/services/adminService";
-import type { Rental } from "@/types/car";
+import type { Rental } from "@/types/rental";
 
 export function useAdmin() {
   const [pendingRentals, setPendingRentals] = useState<Rental[]>([]);
@@ -24,22 +24,39 @@ export function useAdmin() {
   };
 
   const approveRental = async (rentalId: string) => {
-    try {
-      await adminService.approveRental(rentalId);
-      // Remove from pending list locally for instant UI update
-      setPendingRentals(prev => prev.filter(r => r.id !== rentalId));
-      return true;
-    } catch (err: unknown) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-      const message = err instanceof Error ? err.message : String(err);
-      throw new Error(message || "Onay işlemi başarısız.");
-    }
+    await adminService.approveRental(rentalId);
+    setPendingRentals(prev => prev.filter(r => r.id !== rentalId));
+  };
+
+  const rejectRental = async (rentalId: string, reason?: string) => {
+    await adminService.rejectRental(rentalId, reason);
+    setPendingRentals(prev => prev.filter(r => r.id !== rentalId));
+  };
+
+  const cancelRental = async (rentalId: string, reason?: string) => {
+    await adminService.cancelRental(rentalId, reason);
+    // cancelled rentals are aktif → removed from pending list is not needed
+    // but we refetch to keep the list consistent
+    await fetchPendingRentals();
+  };
+
+  const completeRental = async (rentalId: string) => {
+    await adminService.completeRental(rentalId);
+    await fetchPendingRentals();
   };
 
   useEffect(() => {
     fetchPendingRentals();
   }, []);
 
-  return { pendingRentals, loading, error, refetch: fetchPendingRentals, approveRental };
+  return {
+    pendingRentals,
+    loading,
+    error,
+    refetch: fetchPendingRentals,
+    approveRental,
+    rejectRental,
+    cancelRental,
+    completeRental,
+  };
 }

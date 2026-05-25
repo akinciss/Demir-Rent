@@ -28,7 +28,6 @@ const firebaseCarDataSource: CarDataSource = {
     const carsCollectionRef = collection(db as Firestore, COLLECTION_NAME).withConverter(carConverter);
     const querySnapshot = await getDocs(carsCollectionRef);
 
-    // Deterministic defaults for malformed/partial documents
     const defaultType = "Sedan";
     const defaultCapacity = 4;
 
@@ -38,7 +37,7 @@ const firebaseCarDataSource: CarDataSource = {
         ...data,
         type: data.type || defaultType,
         capacity: data.capacity || data.seats || defaultCapacity,
-        isAvailable: data.isAvailable !== undefined ? data.isAvailable : true,
+        // isActive: handled by carConverter (isActive ?? isAvailable ?? true)
       } as Car;
     });
   },
@@ -51,7 +50,7 @@ const firebaseCarDataSource: CarDataSource = {
     const docRef = doc(db as Firestore, COLLECTION_NAME, id).withConverter(carConverter);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) return null;
-    
+
     const data = docSnap.data();
     return { id: docSnap.id, ...data } as Car;
   },

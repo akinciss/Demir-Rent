@@ -1,5 +1,6 @@
 export interface Car {
-  id: string | number;
+  /** Firestore document ID — always a string */
+  id: string;
   brand: string;
   model: string;
   year: number;
@@ -10,7 +11,15 @@ export interface Car {
   image: string;
   type?: string;
   capacity?: number;
-  isAvailable?: boolean;
+  /**
+   * Aracın sistemde aktif/yayında olup olmadığı.
+   * Gerçek tarih müsaitliği slot sistemi üzerinden yönetilir.
+   *
+   * Backward compat: Firestore'da hâlâ `isAvailable` olarak saklanan
+   * eski veriler converter tarafında `isActive ?? isAvailable ?? true`
+   * mantığıyla okunur. Yeni kayıtlar `isActive` olarak yazılır.
+   */
+  isActive?: boolean;
 }
 
 // Rental tipi src/types/rental.ts'e taşındı.

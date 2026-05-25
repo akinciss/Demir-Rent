@@ -8,31 +8,7 @@ import { Key } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import toast from "react-hot-toast";
-const DEFAULT_CAR_IMAGE = "https://images.unsplash.com/photo-1511919884226-5976bd2b9c20?auto=format&fit=crop&w=1200&q=80";
-const ALLOWED_IMAGE_HOSTNAMES = new Set([
-  "images.unsplash.com",
-  "firebasestorage.googleapis.com",
-  "storage.googleapis.com",
-]);
-
-const getSafeImageSrc = (image: string) => {
-  if (!image || typeof image !== "string") {
-    return DEFAULT_CAR_IMAGE;
-  }
-
-  try {
-    const parsed = new URL(image);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return DEFAULT_CAR_IMAGE;
-    }
-    if (!ALLOWED_IMAGE_HOSTNAMES.has(parsed.hostname)) {
-      return DEFAULT_CAR_IMAGE;
-    }
-    return image;
-  } catch {
-    return DEFAULT_CAR_IMAGE;
-  }
-};
+import { safeImageSrc } from "@/lib/imageUtils";
 type CarCardProps = {
   id?: string | number;
   brand: string;
@@ -100,7 +76,7 @@ export default function CarCard({
       {/* Image */}
       <div className="relative h-52 w-full shrink-0 overflow-hidden">
         <Image
-          src={getSafeImageSrc(image)}
+          src={safeImageSrc(image)}
           alt={brand}
           fill
           sizes="(max-width: 768px) 100vw, 33vw"

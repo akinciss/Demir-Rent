@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
-    "make-admin": "node scripts/makeAdmin.js"
+    "make-admin": "node scripts/makeAdmin.js",
+    "seed-slots": "node scripts/seedSlots.js"
   },
   "dependencies": {
     "firebase": "^12.13.0",

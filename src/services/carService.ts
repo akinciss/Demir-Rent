@@ -27,7 +27,7 @@ export const carService = {
                             (capStr === 7 ? (car.capacity || 0) >= 7 : (car.capacity === capStr));
       
       const budgetMatch = car.pricePerDay <= filters.maxBudget;
-      const availabilityMatch = !filters.onlyAvailable || car.isAvailable;
+      const availabilityMatch = !filters.onlyAvailable || (car.isActive !== false);
     
       return typeMatch && capacityMatch && budgetMatch && availabilityMatch;
     });

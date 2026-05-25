@@ -35,15 +35,21 @@ export function validateFirebaseConfig(): { ok: boolean; missing: string[] } {
 }
 
 export function assertFirebaseConfig(): void {
-  const { missing } = validateFirebaseConfig();
-  if (missing.length > 0) {
-    // Don't throw here to allow the application to present a graceful fallback UI
-    // during build/dev/runtime when env vars are not present. Callers may still
-    // inspect `validateFirebaseConfig()` to decide behavior.
+  const { ok, missing } = validateFirebaseConfig();
+  if (!ok) {
+    if (process.env.NODE_ENV === 'production') {
+      // In production, missing config is a hard failure — never silently fall
+      // back to demo/mock data. The operator must fix the deployment config.
+      throw new Error(
+        `[Demir Rent] Firebase configuration is missing in production. ` +
+        `Missing variables: ${missing.join(', ')}. ` +
+        `Set these environment variables in your deployment configuration.`
+      );
+    }
     // eslint-disable-next-line no-console
     console.warn(
-      `Missing Firebase environment variables: ${missing.join(', ')}. ` +
-      `Proceeding without initializing Firebase so the app can show a maintenance fallback.`
+      `[Demir Rent] Missing Firebase environment variables: ${missing.join(', ')}. ` +
+      `Running in demo mode with mock data. Set variables in .env.local to use Firebase.`
     );
   }
 }
@@ -54,8 +60,12 @@ export function isFirebaseConfigValid(): boolean {
 
 /**
  * Demo mode: Firebase config eksikse true döner.
- * Bu modda uygulama mock data ile çalışır, crash etmez.
+ * SADECE geliştirme ortamında (NODE_ENV !== "production") geçerlidir.
+ * Production ortamında assertFirebaseConfig() çağrılmalı ve uygulama crash etmeli.
  */
 export function isDemoMode(): boolean {
+  if (process.env.NODE_ENV === 'production') {
+    return false; // production'da demo mode yoktur
+  }
   return !validateFirebaseConfig().ok;
 }
