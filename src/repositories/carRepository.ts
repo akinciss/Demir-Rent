@@ -1,5 +1,5 @@
 import { db, isFirebaseInitialized } from "@/lib/firebaseClient";
-import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, type Firestore } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, type Firestore } from "firebase/firestore";
 import { carConverter } from "@/lib/converters";
 import { isDemoMode } from "@/lib/config";
 import { mockCars } from "@/data/mockCars";
@@ -55,32 +55,16 @@ const firebaseCarDataSource: CarDataSource = {
     return { id: docSnap.id, ...data } as Car;
   },
 
-  async addCar(carData: Omit<Car, "id">): Promise<string> {
-    if (!isFirebaseInitialized) {
-      throw new Error("FIREBASE_CONFIG_MISSING");
-    }
-
-    const carsCollectionRef = collection(db as Firestore, COLLECTION_NAME).withConverter(carConverter);
-    const docRef = await addDoc(carsCollectionRef, carData);
-    return docRef.id;
+  async addCar(): Promise<string> {
+    throw new Error("Client-side yazma işlemleri kapatıldı. Lütfen adminService (API) üzerinden işlem yapın.");
   },
 
-  async updateCar(id: string, carData: Partial<Car>): Promise<void> {
-    if (!isFirebaseInitialized) {
-      throw new Error("FIREBASE_CONFIG_MISSING");
-    }
-
-    const docRef = doc(db as Firestore, COLLECTION_NAME, id).withConverter(carConverter);
-    await updateDoc(docRef, carData as Partial<Car>);
+  async updateCar(): Promise<void> {
+    throw new Error("Client-side yazma işlemleri kapatıldı. Lütfen adminService (API) üzerinden işlem yapın.");
   },
 
-  async deleteCar(id: string): Promise<void> {
-    if (!isFirebaseInitialized) {
-      throw new Error("FIREBASE_CONFIG_MISSING");
-    }
-
-    const docRef = doc(db as Firestore, COLLECTION_NAME, id).withConverter(carConverter);
-    await deleteDoc(docRef);
+  async deleteCar(): Promise<void> {
+    throw new Error("Client-side yazma işlemleri kapatıldı. Lütfen adminService (API) üzerinden işlem yapın.");
   },
 };
 

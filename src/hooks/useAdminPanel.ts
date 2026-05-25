@@ -79,7 +79,7 @@ export function useAdminPanel() {
   };
 
   const deleteCar = async (carId: string) => {
-    await carRepository.deleteCar(carId);
+    await adminService.deleteCar(carId);
     setCars((prev) => prev.filter((c) => c.id !== carId));
   };
 

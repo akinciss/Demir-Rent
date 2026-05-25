@@ -40,7 +40,45 @@ export const adminService = {
       isActive: carData.isActive !== undefined ? carData.isActive : true,
     };
 
-    await carRepository.addCar(newCar);
+    await adminPost("/api/admin/cars", newCar);
+  },
+
+  async deleteCar(carId: string): Promise<void> {
+    if (!auth?.currentUser) {
+      throw new Error("Giriş yapmanız gerekiyor.");
+    }
+    const token = await auth.currentUser.getIdToken();
+    const res = await fetch(`/api/admin/cars?carId=${carId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Araç silinirken hata oluştu.");
+    }
+  },
+
+  async updateCar(carData: Partial<Car> & { id: string }): Promise<void> {
+    if (!auth?.currentUser) {
+      throw new Error("Giriş yapmanız gerekiyor.");
+    }
+    const token = await auth.currentUser.getIdToken();
+    const res = await fetch("/api/admin/cars", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(carData),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Araç güncellenirken hata oluştu.");
+    }
   },
 
   async getPendingRentalsWithDetails(): Promise<Rental[]> {
