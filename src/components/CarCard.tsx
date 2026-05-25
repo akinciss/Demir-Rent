@@ -42,8 +42,10 @@ export default function CarCard({
   useEffect(() => {
     if (!auth) {
       // If auth isn't initialized, mark as loaded to avoid blocking UI
-      setUserLoaded(true);
-      return;
+      const timer = setTimeout(() => {
+        setUserLoaded(true);
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
     const unsubscribe = onAuthStateChanged(auth, () => {

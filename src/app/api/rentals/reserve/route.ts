@@ -8,12 +8,15 @@ import { FieldValue } from "firebase-admin/firestore";
 
 function calculatePricing(
   pricePerDay: number,
-  startDateInput: any,
-  endDateInput: any
+  startDateInput: unknown,
+  endDateInput: unknown
 ) {
-  const getISOString = (val: any) => {
-    if (val && typeof val.toDate === "function") {
-      return val.toDate().toISOString().split("T")[0];
+  const getISOString = (val: unknown) => {
+    if (val && typeof val === "object" && "toDate" in val && typeof (val as { toDate: () => unknown }).toDate === "function") {
+      const d = (val as { toDate: () => unknown }).toDate();
+      if (d instanceof Date) {
+        return d.toISOString().split("T")[0];
+      }
     }
     if (val instanceof Date) {
       return val.toISOString().split("T")[0];

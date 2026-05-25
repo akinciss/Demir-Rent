@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { adminService } from "@/services/adminService";
 import type { Rental } from "@/types/rental";
 
@@ -7,7 +7,7 @@ export function useAdmin() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPendingRentals = async () => {
+  const fetchPendingRentals = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -16,12 +16,11 @@ export function useAdmin() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message || "Bekleyen siparişler yüklenirken hata oluştu.");
-      // eslint-disable-next-line no-console
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const approveRental = async (rentalId: string) => {
     await adminService.approveRental(rentalId);
@@ -35,8 +34,6 @@ export function useAdmin() {
 
   const cancelRental = async (rentalId: string, reason?: string) => {
     await adminService.cancelRental(rentalId, reason);
-    // cancelled rentals are aktif → removed from pending list is not needed
-    // but we refetch to keep the list consistent
     await fetchPendingRentals();
   };
 
@@ -46,7 +43,27 @@ export function useAdmin() {
   };
 
   useEffect(() => {
-    fetchPendingRentals();
+    let active = true;
+    const load = async () => {
+      try {
+        const data = await adminService.getPendingRentalsWithDetails();
+        if (active) {
+          setPendingRentals(data);
+          setLoading(false);
+        }
+      } catch (err: unknown) {
+        if (active) {
+          const message = err instanceof Error ? err.message : String(err);
+          setError(message || "Bekleyen siparişler yüklenirken hata oluştu.");
+          console.error(err);
+          setLoading(false);
+        }
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   return {

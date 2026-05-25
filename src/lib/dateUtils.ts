@@ -1,21 +1,35 @@
-/**
- * dateUtils.ts
- * Helper functions for safely handling and formatting various date formats,
- * including raw Firestore Timestamp objects, to prevent React render crashes.
- */
-
-// Basic interface to match a Firestore Timestamp without importing firebase directly
-interface FirestoreTimestamp {
+export type FirestoreTimestampLike = {
   seconds: number;
-  nanoseconds: number;
-  toDate?: () => Date;
+  nanoseconds?: number;
+};
+
+export type FirestoreToDateLike = {
+  toDate: () => Date;
+};
+
+function isFirestoreTimestampLike(value: unknown): value is FirestoreTimestampLike {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "seconds" in value &&
+    typeof (value as Record<string, unknown>).seconds === "number"
+  );
+}
+
+function isFirestoreToDateLike(value: unknown): value is FirestoreToDateLike {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as Record<string, unknown>).toDate === "function"
+  );
 }
 
 /**
  * Safely formats any date-like value into a local date string (DD.MM.YYYY).
  * If the value is missing or invalid, it returns a fallback (default "-").
  */
-export function formatDate(dateValue: any, fallback: string = "-"): string {
+export function formatDate(dateValue: unknown, fallback: string = "-"): string {
   if (dateValue == null) {
     return fallback;
   }
@@ -33,11 +47,11 @@ export function formatDate(dateValue: any, fallback: string = "-"): string {
     dateObj = dateValue;
   }
   // 2. If it's a Firestore Timestamp with .toDate()
-  else if (typeof dateValue === 'object' && typeof dateValue.toDate === 'function') {
+  else if (isFirestoreToDateLike(dateValue)) {
     dateObj = dateValue.toDate();
   }
   // 3. If it's a raw Firestore Timestamp object { seconds, nanoseconds }
-  else if (typeof dateValue === 'object' && 'seconds' in dateValue) {
+  else if (isFirestoreTimestampLike(dateValue)) {
     dateObj = new Date(dateValue.seconds * 1000);
   }
   // 4. If it's a string or number
@@ -64,7 +78,7 @@ export function formatDate(dateValue: any, fallback: string = "-"): string {
  * Normalizes a Firebase Timestamp, Date, or string to a standard YYYY-MM-DD string.
  * Useful for normalizing data in Firestore converters.
  */
-export function normalizeDate(dateValue: any): string | undefined {
+export function normalizeDate(dateValue: unknown): string | undefined {
   if (dateValue == null) return undefined;
 
   // Already YYYY-MM-DD format
@@ -76,9 +90,9 @@ export function normalizeDate(dateValue: any): string | undefined {
 
   if (dateValue instanceof Date) {
     dateObj = dateValue;
-  } else if (typeof dateValue === 'object' && typeof dateValue.toDate === 'function') {
+  } else if (isFirestoreToDateLike(dateValue)) {
     dateObj = dateValue.toDate();
-  } else if (typeof dateValue === 'object' && 'seconds' in dateValue) {
+  } else if (isFirestoreTimestampLike(dateValue)) {
     dateObj = new Date(dateValue.seconds * 1000);
   } else if (typeof dateValue === 'string' || typeof dateValue === 'number') {
     dateObj = new Date(dateValue);

@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PlusCircle, Trash2, Calendar, RefreshCcw, Car } from "lucide-react";
 import { carSlotRepository } from "@/repositories/carSlotRepository";
 import { adminService } from "@/services/adminService";
 import type { Car as CarType } from "@/types/car";
 import type { CarSlot } from "@/types/carSlot";
 import { formatDate } from "@/lib/dateUtils";
-import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
 interface AdminSlotManagerProps {
@@ -24,7 +23,7 @@ export function AdminSlotManager({ cars }: AdminSlotManagerProps) {
   const [endAt, setEndAt] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchSlots = async (carId: string) => {
+  const fetchSlots = useCallback(async (carId: string) => {
     if (!carId) {
       setSlots([]);
       return;
@@ -40,10 +39,34 @@ export function AdminSlotManager({ cars }: AdminSlotManagerProps) {
     } finally {
       setLoadingSlots(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchSlots(selectedCarId);
+    let active = true;
+    const load = async () => {
+      if (!selectedCarId) {
+        setSlots([]);
+        return;
+      }
+      setLoadingSlots(true);
+      try {
+        const data = await carSlotRepository.getSlotsByCarId(selectedCarId);
+        if (active) {
+          data.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+          setSlots(data);
+          setLoadingSlots(false);
+        }
+      } catch {
+        if (active) {
+          toast.error("Slotlar yüklenirken bir hata oluştu.");
+          setLoadingSlots(false);
+        }
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
   }, [selectedCarId]);
 
   const handleAddSlot = async (e: React.FormEvent) => {

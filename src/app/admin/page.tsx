@@ -40,10 +40,12 @@ export default function AdminPage() {
   // Auth + admin check
   useEffect(() => {
     if (!auth) {
-      setCheckingAuth(false);
-      setIsAdmin(false);
-      setTimeout(() => router.push("/"), 2000);
-      return;
+      const timer = setTimeout(() => {
+        setCheckingAuth(false);
+        setIsAdmin(false);
+        router.push("/");
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -61,7 +63,6 @@ export default function AdminPage() {
           setTimeout(() => router.push("/"), 2000);
         }
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error(err);
         setIsAdmin(false);
         setTimeout(() => router.push("/"), 2000);

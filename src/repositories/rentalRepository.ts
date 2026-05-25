@@ -1,23 +1,11 @@
 import { db, isFirebaseInitialized } from "@/lib/firebaseClient";
-import { collection, getDocs, doc, addDoc, updateDoc, query, where, type Firestore } from "firebase/firestore";
+import { collection, getDocs, query, where, type Firestore } from "firebase/firestore";
 import { rentalConverter } from "@/lib/converters";
 import { validateFirebaseConfig } from "@/lib/config";
 import type { Rental } from "@/types/rental";
 import type { RentalStatus } from "@/types/rental";
 
 const COLLECTION_NAME = "rentals";
-
-const VALID_STATUSES: RentalStatus[] = [
-  "pending",
-  "active",
-  "rejected",
-  "cancelled",
-  "completed",
-];
-
-function isValidStatus(value: string): value is RentalStatus {
-  return (VALID_STATUSES as string[]).includes(value);
-}
 
 export const rentalRepository = {
   async getAllRentals(): Promise<Rental[]> {
@@ -57,7 +45,7 @@ export const rentalRepository = {
    * Bu method legacy uyumluluk için bırakılmıştır; doğrudan çağrılmamalı.
    * @deprecated Kullanmak yerine /api/rentals/reserve API route'unu kullanın.
    */
-  async createRental(rentalData: Omit<Rental, "id">): Promise<string> {
+  async createRental(_rentalData: Omit<Rental, "id">): Promise<string> {
     throw new Error(
       "Kritik Güvenlik Hatası: createRental client-side üzerinden çağrılamaz! " +
       "Lütfen /api/rentals/reserve uç noktasını (useCreateRental) kullanın."
@@ -68,7 +56,7 @@ export const rentalRepository = {
    * Status güncelleme — sadece geçerli RentalStatus değerlerini kabul eder.
    * @deprecated Kullanmak yerine güvenli admin API route'larını kullanın.
    */
-  async updateRentalStatus(id: string, status: string): Promise<void> {
+  async updateRentalStatus(_id: string, _status: string): Promise<void> {
     throw new Error(
       "Kritik Güvenlik Hatası: updateRentalStatus client-side üzerinden çağrılamaz! " +
       "Lütfen adminService ve /api/admin/* endpointlerini kullanın."

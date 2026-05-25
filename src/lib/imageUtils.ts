@@ -41,7 +41,7 @@ export function safeImageSrc(src: string | undefined | null): string {
     // We can just rely on the fallback for blocked hosts and let Next.js handle the configured ones.
     
     return cleanSrc;
-  } catch (error) {
+  } catch {
     // Invalid URL format
     return FALLBACK_CAR_IMAGE;
   }

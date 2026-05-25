@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { adminService } from "@/services/adminService";
 import { carRepository } from "@/repositories/carRepository";
 import type { Rental } from "@/types/rental";
@@ -18,7 +18,7 @@ export function useAdminPanel() {
 
   // ── Rentals ────────────────────────────────────────────────────
 
-  const fetchRentals = async () => {
+  const fetchRentals = useCallback(async () => {
     setLoadingRentals(true);
     setRentalError(null);
     try {
@@ -33,11 +33,10 @@ export function useAdminPanel() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setRentalError(msg || "Rezervasyonlar yüklenemedi.");
-      // throw new Error(msg || "Bekleyen rezervasyonlar yüklenemedi."); // Artık UI'da toast ve error state var
     } finally {
       setLoadingRentals(false);
     }
-  };
+  }, []);
 
   const approveRental = async (rentalId: string) => {
     await adminService.approveRental(rentalId);
@@ -61,7 +60,7 @@ export function useAdminPanel() {
 
   // ── Cars ───────────────────────────────────────────────────────
 
-  const fetchCars = async () => {
+  const fetchCars = useCallback(async () => {
     setLoadingCars(true);
     try {
       const data = await carRepository.getAllCars();
@@ -72,7 +71,7 @@ export function useAdminPanel() {
     } finally {
       setLoadingCars(false);
     }
-  };
+  }, []);
 
   const addCar = async (carData: Omit<Car, "id">) => {
     await adminService.addCar(carData);
@@ -87,9 +86,37 @@ export function useAdminPanel() {
   // ── Init ──────────────────────────────────────────────────────
 
   useEffect(() => {
-    fetchRentals();
-    fetchCars().catch(() => {/* errors are handled by callers */});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    let active = true;
+    const load = async () => {
+      try {
+        const rentalsData = await adminService.getAllRentalsWithDetails();
+        const carsData = await carRepository.getAllCars();
+
+        if (active) {
+          rentalsData.sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.startDate).getTime();
+            const dateB = new Date(b.createdAt || b.startDate).getTime();
+            return dateB - dateA;
+          });
+          setRentals(rentalsData);
+          setCars(carsData);
+          setLoadingRentals(false);
+          setLoadingCars(false);
+        }
+      } catch (err: unknown) {
+        if (active) {
+          const msg = err instanceof Error ? err.message : String(err);
+          setRentalError(msg || "Yükleme sırasında hata oluştu.");
+          setLoadingRentals(false);
+          setLoadingCars(false);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   return {

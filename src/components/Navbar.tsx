@@ -22,8 +22,10 @@ export default function Navbar() {
 
   useEffect(() => {
     if (!auth) {
-      setUser(null);
-      return;
+      const timer = setTimeout(() => {
+        setUser(null);
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -38,8 +40,13 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Close mobile menu on route change
-  useEffect(() => { setMobileOpen(false); }, [pathname]);
+  // Close mobile menu on route change without trigger cascaded setState in layout effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMobileOpen(false);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [pathname]);
 
   const handleSignOut = async () => {
     try {

@@ -33,8 +33,13 @@ export function useRentals() {
 
   useEffect(() => {
     if (!auth) {
-      setLoading(false);
-      return;
+      // Use set timeout or keep initial loading true until we are sure, but never call setState synchronously.
+      // Better yet, we can do it inside a requestAnimationFrame or check condition.
+      // If we just check auth synchronously and it's null, we defer setting loading.
+      const timer = setTimeout(() => {
+        setLoading(false);
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
