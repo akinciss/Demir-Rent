@@ -18,59 +18,44 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Valid rental status values
-    function isValidRentalStatus(status) {
-      return status in ["onay_bekliyor", "aktif", "reddedildi", "iptal", "tamamlandi"];
-    }
-
     // ── Cars collection ───────────────────────────────────────────
-    // Publicly readable. Only admins can write (create/update/delete).
+    // Publicly readable. Client-side writes are strictly CLOSED.
+    // Admin operations are performed exclusively via API/Admin SDK.
     match /cars/{carId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if false;
     }
 
     // ── Rentals collection ────────────────────────────────────────
-    // - create: CLOSED on client side — all writes go through Admin SDK via
-    //           /api/rentals/reserve (which bypasses client-side rules).
-    //           Keeping `allow create: if false` prevents clients from directly
-    //           writing arbitrary rental documents with manipulated fields
-    //           (status, totalPrice, userId, carId, etc.).
-    // - read:   Users can read their own rentals; admins can read all.
-    // - update: Only admins may update (also via Admin SDK in API routes,
-    //           which bypasses rules). The rule below is a defense-in-depth
-    //           guard for any direct client update attempts.
-    // - delete: Admin only.
+    // - create/update/delete: CLOSED on client side.
+    // - read: Users can read their own rentals; admins can read all.
     match /rentals/{rentalId} {
-      // No client-side create. All rental creation goes through the server API.
-      allow create: if false;
-
-      // Read: own rental or admin
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid || isAdmin()
       );
-
-      // Update: CLOSED on client side. All status updates go through API routes.
-      allow update: if false;
-
-      // Delete: admin only
-      allow delete: if isAdmin();
+      allow write: if false;
     }
 
     // ── CarSlots collection ───────────────────────────────────────
-    // Publicly readable (so the rent page can display available slots).
-    // All writes are performed exclusively via Admin SDK (server-side API routes).
-    // Client-side writes are completely blocked.
+    // Publicly readable. Client-side writes are strictly CLOSED.
     match /carSlots/{slotId} {
       allow read: if true;
       allow write: if false;
     }
 
     // ── Roles collection ──────────────────────────────────────────
-    // Only admins can read/modify roles — prevents privilege escalation.
-    // Admin SDK (used in API routes) bypasses these rules.
+    // Only admins can read roles. Client-side writes are strictly CLOSED.
     match /roles/{roleId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ── Users collection ──────────────────────────────────────────
+    // Users can only read and update their own profile. Client-side creates/deletes are CLOSED.
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId);
+      allow create, delete: if false;
     }
   }
 }
