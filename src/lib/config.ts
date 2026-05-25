@@ -46,7 +46,6 @@ export function assertFirebaseConfig(): void {
         `Set these environment variables in your deployment configuration.`
       );
     }
-    // eslint-disable-next-line no-console
     console.warn(
       `[Demir Rent] Missing Firebase environment variables: ${missing.join(', ')}. ` +
       `Running in demo mode with mock data. Set variables in .env.local to use Firebase.`

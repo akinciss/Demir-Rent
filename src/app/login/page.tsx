@@ -34,7 +34,6 @@ export default function LoginPage() {
       toast.success("Giriş başarılı! Yönlendiriliyorsunuz...");
 
     } catch (err: unknown) {
-      // eslint-disable-next-line no-console
       console.error("Giriş hatası:", err);
       if (err instanceof FirebaseError) {
         const code = err.code;

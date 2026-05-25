@@ -24,7 +24,6 @@ export function useRentals() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message || "Siparişler yüklenirken hata oluştu.");
-      // eslint-disable-next-line no-console
       console.error(err);
     } finally {
       setLoading(false);

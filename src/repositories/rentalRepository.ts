@@ -3,7 +3,6 @@ import { collection, getDocs, query, where, type Firestore } from "firebase/fire
 import { rentalConverter } from "@/lib/converters";
 import { validateFirebaseConfig } from "@/lib/config";
 import type { Rental } from "@/types/rental";
-import type { RentalStatus } from "@/types/rental";
 
 const COLLECTION_NAME = "rentals";
 
@@ -40,12 +39,8 @@ export const rentalRepository = {
     return snapshot.docs.map(doc => ({ ...doc.data() }) as Rental);
   },
 
-  /**
-   * Rental oluşturma — sadece Admin SDK üzerinden yapılmalı.
-   * Bu method legacy uyumluluk için bırakılmıştır; doğrudan çağrılmamalı.
-   * @deprecated Kullanmak yerine /api/rentals/reserve API route'unu kullanın.
-   */
-  async createRental(_rentalData: Omit<Rental, "id">): Promise<string> {
+  async createRental(rentalData?: Omit<Rental, "id">): Promise<string> {
+    void rentalData;
     throw new Error(
       "Kritik Güvenlik Hatası: createRental client-side üzerinden çağrılamaz! " +
       "Lütfen /api/rentals/reserve uç noktasını (useCreateRental) kullanın."
@@ -56,7 +51,7 @@ export const rentalRepository = {
    * Status güncelleme — sadece geçerli RentalStatus değerlerini kabul eder.
    * @deprecated Kullanmak yerine güvenli admin API route'larını kullanın.
    */
-  async updateRentalStatus(_id: string, _status: string): Promise<void> {
+  async updateRentalStatus(): Promise<void> {
     throw new Error(
       "Kritik Güvenlik Hatası: updateRentalStatus client-side üzerinden çağrılamaz! " +
       "Lütfen adminService ve /api/admin/* endpointlerini kullanın."

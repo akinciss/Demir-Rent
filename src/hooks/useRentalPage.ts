@@ -55,7 +55,6 @@ export function useRentalPage(): RentalPageState {
     carService.getCarDetails(params.id as string)
       .then(setCar)
       .catch((err) => {
-        // eslint-disable-next-line no-console
         console.error("Araç yüklenirken hata:", err);
       })
       .finally(() => setLoading(false));
@@ -68,7 +67,6 @@ export function useRentalPage(): RentalPageState {
       .getSlotsByCarId(params.id as string)
       .then((slots) => setAvailableSlots(slots.filter((s) => s.status === "available")))
       .catch((err) => {
-        // eslint-disable-next-line no-console
         console.error("Slotlar yüklenirken hata:", err);
       });
   }, [params.id]);

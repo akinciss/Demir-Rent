@@ -105,8 +105,7 @@ export async function POST(request: Request) {
     if (err instanceof Error && err.message.includes("ADMIN_SDK_NOT_CONFIGURED")) {
       return NextResponse.json({ error: "Sunucu yapılandırması eksik." }, { status: 503 });
     }
-    // eslint-disable-next-line no-console
-    console.error("Admin ret transaction hatası:", err);
+    console.error("Admin reddetme hatası:", err);
     return NextResponse.json({ error: "Red işlemi sırasında beklenmeyen bir hata oluştu." }, { status: 500 });
   }
 }

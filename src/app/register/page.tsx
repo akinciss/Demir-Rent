@@ -33,7 +33,6 @@ export default function RegisterPage() {
       toast.success("Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...");
 
     } catch (err: unknown) {
-      // eslint-disable-next-line no-console
       console.error("Kayıt sırasında hata yakalandı:", err);
       if (err instanceof FirebaseError) {
         const code = err.code;

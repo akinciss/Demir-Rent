@@ -197,7 +197,6 @@ export async function POST(request: Request) {
     }
 
     // Beklenmeyen hata
-    // eslint-disable-next-line no-console
     console.error("Rezervasyon transaction hatası:", err);
     return NextResponse.json(
       { error: "Rezervasyon oluşturulurken beklenmeyen bir hata oluştu." },

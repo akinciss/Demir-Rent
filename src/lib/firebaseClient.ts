@@ -16,12 +16,10 @@ if (validateFirebaseConfig().ok) {
 		isFirebaseInitialized = true;
 	} catch (err) {
 		// If initialization fails, don't throw — let the app render a graceful fallback.
-		// eslint-disable-next-line no-console
 		console.error("Firebase initialization failed:", err);
 		isFirebaseInitialized = false;
 	}
 } else {
-	// eslint-disable-next-line no-console
 	console.warn("Firebase config is invalid or incomplete — skipping initialization.");
 }
 
