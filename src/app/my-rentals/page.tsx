@@ -9,6 +9,7 @@ import { useRentals } from "@/hooks/useRentals";
 import Image from "next/image";
 import { safeImageSrc } from "@/lib/imageUtils";
 import { formatDate } from "@/lib/dateUtils";
+import { translateStatus, translateStatusColor } from "@/lib/statusUtils";
 
 export default function MyRentalsPage() {
   const router = useRouter();
@@ -119,21 +120,9 @@ export default function MyRentalsPage() {
                     <p className="text-sm text-stone-500 mb-1">Toplam Tutar</p>
                     <p className="text-2xl font-semibold text-stone-800 mb-4">₺{rental.totalPrice}</p>
                     
-                    {rental.status === "onay_bekliyor" ? (
-                      <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-700">
-                        <span className="mr-2 h-2 w-2 rounded-full bg-amber-500"></span>
-                        Onay Bekliyor
-                      </span>
-                    ) : rental.status === "aktif" ? (
-                      <span className="inline-flex items-center rounded-full bg-stone-100 border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-700">
-                        <span className="mr-2 h-2 w-2 rounded-full bg-stone-500"></span>
-                        Onaylandı / Aktif
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-800">
-                        {rental.status}
-                      </span>
-                    )}
+                    <span className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium border ${translateStatusColor(rental.status)}`}>
+                      {translateStatus(rental.status)}
+                    </span>
                   </div>
                 </div>
               </div>

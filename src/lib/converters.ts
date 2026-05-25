@@ -1,6 +1,7 @@
 import type { Car, Rental } from "@/types/car";
 import { DocumentData, QueryDocumentSnapshot, SnapshotOptions } from "firebase/firestore";
 import { normalizeDate } from "@/lib/dateUtils";
+import { normalizeStatusToEnglish } from "@/lib/statusUtils";
 
 export const carConverter = {
   toFirestore(car: Omit<Car, "id">): DocumentData {
@@ -29,6 +30,7 @@ export const rentalConverter = {
     return {
       id: snapshot.id,
       ...data,
+      status: normalizeStatusToEnglish(data.status),
       startDate: normalizeDate(data.startDate) ?? data.startDate,
       endDate: normalizeDate(data.endDate) ?? data.endDate,
       createdAt: normalizeDate(data.createdAt) ?? data.createdAt,

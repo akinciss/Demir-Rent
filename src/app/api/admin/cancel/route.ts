@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
       const rental = rentalSnap.data()!;
 
-      if (rental.status !== "aktif") {
+      if (rental.status !== "active") {
         throw new ApiError(
           `Bu rezervasyon '${rental.status}' durumunda, iptal edilemez. Sadece aktif rezervasyonlar iptal edilebilir.`,
           409
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
 
       // Rental güncelle
       const update: Record<string, unknown> = {
-        status: "iptal",
+        status: "cancelled",
         cancelledAt: FieldValue.serverTimestamp(),
         cancelledBy: uid,
       };

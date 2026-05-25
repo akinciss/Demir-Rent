@@ -24,18 +24,35 @@ function getAdminApp(): App {
     return _adminApp;
   }
 
-  const serviceAccountPath = resolve(process.cwd(), "service-account.json");
+  let serviceAccount: ServiceAccount;
 
-  if (!existsSync(serviceAccountPath)) {
-    throw new Error(
-      "ADMIN_SDK_NOT_CONFIGURED: service-account.json bulunamadı. " +
-      "Rezervasyon API'si çalışamaz."
-    );
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    try {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON) as ServiceAccount;
+      if (serviceAccount.privateKey) {
+        serviceAccount.privateKey = serviceAccount.privateKey.replace(/\\n/g, "\n");
+      }
+    } catch (e) {
+      throw new Error("ADMIN_SDK_NOT_CONFIGURED: FIREBASE_SERVICE_ACCOUNT_JSON ortam değişkeni geçerli bir JSON değil: " + String(e));
+    }
+  } else {
+    const serviceAccountPath = resolve(process.cwd(), "service-account.json");
+
+    if (!existsSync(serviceAccountPath)) {
+      throw new Error(
+        "ADMIN_SDK_NOT_CONFIGURED: service-account.json bulunamadı veya FIREBASE_SERVICE_ACCOUNT_JSON ortam değişkeni tanımlanmadı. " +
+        "Rezervasyon API'si çalışamaz."
+      );
+    }
+
+    try {
+      serviceAccount = JSON.parse(
+        readFileSync(serviceAccountPath, "utf-8")
+      ) as ServiceAccount;
+    } catch (e) {
+      throw new Error("ADMIN_SDK_NOT_CONFIGURED: service-account.json dosyası parse edilemedi: " + String(e));
+    }
   }
-
-  const serviceAccount = JSON.parse(
-    readFileSync(serviceAccountPath, "utf-8")
-  ) as ServiceAccount;
 
   _adminApp = initializeApp({ credential: cert(serviceAccount) });
   return _adminApp;

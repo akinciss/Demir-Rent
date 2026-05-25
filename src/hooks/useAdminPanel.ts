@@ -9,22 +9,31 @@ import type { Car } from "@/types/car";
  * Her aksiyon kendi hata mesajını fırlatır; caller toast.error ile gösterir.
  */
 export function useAdminPanel() {
-  const [pendingRentals, setPendingRentals] = useState<Rental[]>([]);
+  const [rentals, setRentals] = useState<Rental[]>([]);
   const [loadingRentals, setLoadingRentals] = useState(true);
+  const [rentalError, setRentalError] = useState<string | null>(null);
 
   const [cars, setCars] = useState<Car[]>([]);
   const [loadingCars, setLoadingCars] = useState(true);
 
   // ── Rentals ────────────────────────────────────────────────────
 
-  const fetchPendingRentals = async () => {
+  const fetchRentals = async () => {
     setLoadingRentals(true);
+    setRentalError(null);
     try {
-      const data = await adminService.getPendingRentalsWithDetails();
-      setPendingRentals(data);
+      const data = await adminService.getAllRentalsWithDetails();
+      // En güncel (createdAt) başa gelecek şekilde sırala
+      data.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.startDate).getTime();
+        const dateB = new Date(b.createdAt || b.startDate).getTime();
+        return dateB - dateA;
+      });
+      setRentals(data);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(msg || "Bekleyen rezervasyonlar yüklenemedi.");
+      setRentalError(msg || "Rezervasyonlar yüklenemedi.");
+      // throw new Error(msg || "Bekleyen rezervasyonlar yüklenemedi."); // Artık UI'da toast ve error state var
     } finally {
       setLoadingRentals(false);
     }
@@ -32,22 +41,22 @@ export function useAdminPanel() {
 
   const approveRental = async (rentalId: string) => {
     await adminService.approveRental(rentalId);
-    setPendingRentals((prev) => prev.filter((r) => r.id !== rentalId));
+    await fetchRentals();
   };
 
   const rejectRental = async (rentalId: string) => {
     await adminService.rejectRental(rentalId);
-    setPendingRentals((prev) => prev.filter((r) => r.id !== rentalId));
+    await fetchRentals();
   };
 
   const cancelRental = async (rentalId: string) => {
     await adminService.cancelRental(rentalId);
-    await fetchPendingRentals();
+    await fetchRentals();
   };
 
   const completeRental = async (rentalId: string) => {
     await adminService.completeRental(rentalId);
-    await fetchPendingRentals();
+    await fetchRentals();
   };
 
   // ── Cars ───────────────────────────────────────────────────────
@@ -78,17 +87,18 @@ export function useAdminPanel() {
   // ── Init ──────────────────────────────────────────────────────
 
   useEffect(() => {
-    fetchPendingRentals().catch(() => {/* errors are handled by callers */});
+    fetchRentals();
     fetchCars().catch(() => {/* errors are handled by callers */});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
-    pendingRentals,
+    rentals,
     loadingRentals,
+    rentalError,
     cars,
     loadingCars,
-    refetchRentals: fetchPendingRentals,
+    refetchRentals: fetchRentals,
     refetchCars: fetchCars,
     approveRental,
     rejectRental,

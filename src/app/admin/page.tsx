@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { rolesRepository } from "@/repositories/rolesRepository";
-import { ShieldCheck, PlusCircle, RefreshCcw, Settings, Car } from "lucide-react";
+import { ShieldCheck, PlusCircle, RefreshCcw, Settings, Car, Calendar } from "lucide-react";
 import { useAdminPanel } from "@/hooks/useAdminPanel";
 import { AdminCarForm } from "@/components/admin/AdminCarForm";
 import { AdminCarList } from "@/components/admin/AdminCarList";
 import { AdminRentalList } from "@/components/admin/AdminRentalList";
+import { AdminSlotManager } from "@/components/admin/AdminSlotManager";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -20,8 +21,9 @@ export default function AdminPage() {
   const [showForm, setShowForm] = useState(false);
 
   const {
-    pendingRentals,
+    rentals,
     loadingRentals,
+    rentalError,
     cars,
     loadingCars,
     refetchRentals,
@@ -32,6 +34,8 @@ export default function AdminPage() {
     addCar,
     deleteCar,
   } = useAdminPanel();
+
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "active" | "completed" | "cancelled">("pending");
 
   // Auth + admin check
   useEffect(() => {
@@ -233,8 +237,45 @@ export default function AdminPage() {
                 </button>
               </div>
 
+              {/* Tab Selector */}
+              <div className="flex border-b mb-6 overflow-x-auto gap-2" style={{ borderColor: "var(--color-border)" }}>
+                {(["pending", "active", "completed", "cancelled", "all"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className="pb-2 px-3 text-sm font-medium border-b-2 whitespace-nowrap transition-all duration-300"
+                    style={{
+                      borderColor: activeTab === tab ? "var(--color-gold)" : "transparent",
+                      color: activeTab === tab ? "var(--color-gold)" : "var(--color-text-muted)",
+                    }}
+                  >
+                    {tab === "pending" && "Bekleyen"}
+                    {tab === "active" && "Aktif"}
+                    {tab === "completed" && "Tamamlanan"}
+                    {tab === "cancelled" && "İptal Edilen"}
+                    {tab === "all" && "Tümü"}
+                    {" "}
+                    ({
+                      tab === "all" 
+                        ? rentals.length 
+                        : rentals.filter(r => r.status === tab).length
+                    })
+                  </button>
+                ))}
+              </div>
+
+              {rentalError && (
+                <div className="mb-4 text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl p-3">
+                  {rentalError}
+                </div>
+              )}
+
               <AdminRentalList
-                rentals={pendingRentals}
+                rentals={
+                  activeTab === "all"
+                    ? rentals
+                    : rentals.filter((r) => r.status === activeTab)
+                }
                 loading={loadingRentals}
                 onApprove={handleApprove}
                 onReject={handleReject}
@@ -244,6 +285,22 @@ export default function AdminPage() {
             </div>
           </div>
 
+        </div>
+
+        {/* Slot Yönetimi */}
+        <div className="mt-8">
+          <div className="glass-card rounded-3xl p-8">
+            <div className="mb-6">
+              <h2
+                className="flex items-center gap-2 text-lg font-medium"
+                style={{ fontFamily: "'Playfair Display', serif", color: "var(--color-text)" }}
+              >
+                <Calendar className="h-5 w-5" style={{ color: "var(--color-vizon)" }} />
+                Tarih Müsaitlik (Slot) Yönetimi
+              </h2>
+            </div>
+            <AdminSlotManager cars={cars} />
+          </div>
         </div>
       </div>
     </main>

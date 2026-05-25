@@ -8,10 +8,10 @@ import { FieldValue } from "firebase-admin/firestore";
  * Admin bir rezervasyonu onaylar.
  * Transaction içinde:
  *  1. Admin token doğrulama
- *  2. Rental var mı, onay_bekliyor durumunda mı?
+ *  2. Rental var mı, pending durumunda mı?
  *  3. Slot var mı, hâlâ bu rental'a reserved mı? (slotId varsa)
- *  4. Başka aktif çakışan rental var mı?
- *  5. Rental status → "aktif"
+ *  4. Başka active çakışan rental var mı?
+ *  5. Rental status → "active"
  *
  * Body: { rentalId: string }
  */
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
       const rental = rentalSnap.data()!;
 
-      if (rental.status !== "onay_bekliyor") {
+      if (rental.status !== "pending") {
         throw new ApiError(
           `Bu rezervasyon zaten '${rental.status}' durumunda, onaylanamaz.`,
           409
@@ -95,29 +95,37 @@ export async function POST(request: Request) {
         }
       }
 
-      // Çakışan aktif rezervasyon kontrolü (aynı araç, aktif)
+      // Çakışan aktif rezervasyon kontrolü (aynı araç, active)
       const conflictSnap = await transaction.get(
         db.collection("rentals")
           .where("carId", "==", rental.carId)
-          .where("status", "==", "aktif")
-          .limit(1)
+          .where("status", "==", "active")
       );
 
       if (!conflictSnap.empty) {
-        // Sadece farklı bir rental ile çakışıyorsa hata ver
-        const conflicting = conflictSnap.docs[0];
-        if (conflicting.id !== rentalId) {
-          const c = conflicting.data();
-          throw new ApiError(
-            `Bu araç için çakışan aktif bir rezervasyon mevcut (${c.startDate} - ${c.endDate}).`,
-            409
-          );
+        const newStart = new Date(rental.startDate).getTime();
+        const newEnd = new Date(rental.endDate).getTime();
+
+        for (const doc of conflictSnap.docs) {
+          if (doc.id === rentalId) continue;
+
+          const c = doc.data();
+          const existingStart = new Date(c.startDate).getTime();
+          const existingEnd = new Date(c.endDate).getTime();
+
+          // Kesişim (Overlap) Formülü: Başlangıç bitişten önce, bitiş başlangıçtan sonra
+          if (newStart < existingEnd && newEnd > existingStart) {
+            throw new ApiError(
+              `Bu araç için çakışan aktif bir rezervasyon mevcut (${c.startDate} - ${c.endDate}).`,
+              409
+            );
+          }
         }
       }
 
       // Onayı işle
       transaction.update(rentalRef, {
-        status: "aktif",
+        status: "active",
         approvedAt: FieldValue.serverTimestamp(),
         approvedBy: uid,
       });

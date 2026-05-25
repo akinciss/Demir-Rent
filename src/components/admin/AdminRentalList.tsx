@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { Rental, RentalStatus } from "@/types/rental";
 import { safeImageSrc } from "@/lib/imageUtils";
 import { formatDate } from "@/lib/dateUtils";
+import { translateStatus, translateStatusColor } from "@/lib/statusUtils";
 
 interface AdminRentalListProps {
   rentals: Rental[];
@@ -15,30 +16,6 @@ interface AdminRentalListProps {
   onCancel: (rentalId: string) => Promise<void>;
   onComplete: (rentalId: string) => Promise<void>;
 }
-
-const STATUS_LABELS: Record<RentalStatus, string> = {
-  onay_bekliyor: "Onay Bekliyor",
-  aktif: "Aktif",
-  reddedildi: "Reddedildi",
-  iptal: "İptal",
-  tamamlandi: "Tamamlandı",
-};
-
-const STATUS_COLORS: Record<RentalStatus, string> = {
-  onay_bekliyor: "rgba(166,138,100,0.15)",
-  aktif: "rgba(34,197,94,0.12)",
-  reddedildi: "rgba(201,123,90,0.12)",
-  iptal: "rgba(156,163,175,0.15)",
-  tamamlandi: "rgba(99,102,241,0.1)",
-};
-
-const STATUS_TEXT: Record<RentalStatus, string> = {
-  onay_bekliyor: "var(--color-gold)",
-  aktif: "#16a34a",
-  reddedildi: "#c97b5a",
-  iptal: "#6b7280",
-  tamamlandi: "#6366f1",
-};
 
 export function AdminRentalList({
   rentals,
@@ -74,8 +51,8 @@ export function AdminRentalList({
     <div className="space-y-4 max-h-[620px] overflow-y-auto pr-1">
       {rentals.map((rental) => {
         const status = rental.status as RentalStatus;
-        const isPending = status === "onay_bekliyor";
-        const isActive = status === "aktif";
+        const isPending = status === "pending";
+        const isActive = status === "active";
 
         return (
           <motion.div
@@ -90,13 +67,9 @@ export function AdminRentalList({
             {/* Status badge */}
             <div className="flex items-center justify-between">
               <span
-                className="inline-block rounded-full px-3 py-1 text-xs font-medium"
-                style={{
-                  backgroundColor: STATUS_COLORS[status] ?? "transparent",
-                  color: STATUS_TEXT[status] ?? "var(--color-text)",
-                }}
+                className={`inline-block rounded-full px-3 py-1 text-xs font-medium border ${translateStatusColor(status)}`}
               >
-                {STATUS_LABELS[status] ?? status}
+                {translateStatus(status)}
               </span>
             </div>
 

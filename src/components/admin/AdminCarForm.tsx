@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PlusCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import type { Car } from "@/types/car";
+import toast from "react-hot-toast";
 
 interface AdminCarFormProps {
   onAdd: (carData: Omit<Car, "id">) => Promise<void>;
@@ -36,18 +37,49 @@ export function AdminCarForm({ onAdd, onCancel }: AdminCarFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validations
+    const brand = carData.brand.trim();
+    const model = carData.model.trim();
+    const year = Number(carData.year);
+    const pricePerDay = Number(carData.pricePerDay);
+    const image = carData.image.trim();
+    const seats = Number(carData.seats);
+
+    if (!brand || !model) {
+      toast.error("Marka ve Model alanları boş bırakılamaz.");
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+    if (isNaN(year) || year < 1900 || year > currentYear + 2) {
+      toast.error(`Geçersiz yıl. Yıl değeri 1900 ile ${currentYear + 2} arasında olmalıdır.`);
+      return;
+    }
+
+    if (isNaN(pricePerDay) || pricePerDay <= 0) {
+      toast.error("Günlük kiralama ücreti sıfırdan büyük olmalıdır.");
+      return;
+    }
+
+    const isValidUrl = image.startsWith("http://") || image.startsWith("https://") || image.startsWith("/");
+    if (!isValidUrl) {
+      toast.error("Geçersiz Görsel URL. Lütfen geçerli bir http/https linki veya local path girin.");
+      return;
+    }
+
     setIsAdding(true);
     try {
       await onAdd({
-        brand: carData.brand,
-        model: carData.model,
-        year: Number(carData.year),
+        brand,
+        model,
+        year,
         fuel: carData.fuel,
         transmission: carData.transmission,
-        pricePerDay: Number(carData.pricePerDay),
-        image: carData.image,
-        seats: Number(carData.seats),
-        capacity: Number(carData.seats),
+        pricePerDay,
+        image,
+        seats,
+        capacity: seats,
         type: carData.type,
         isActive: true,
       });

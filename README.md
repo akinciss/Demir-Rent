@@ -159,7 +159,7 @@ Rental status: "iptal" veya "tamamlandi"
 | `endAt` | `string` (YYYY-MM-DD) | Bitiş tarihi |
 | `status` | `CarSlotStatus` | `available` \| `reserved` \| `booked` \| `closed` |
 
-Slot yazma işlemi **yalnızca Admin SDK** üzerinden yapılır. Client-side `allow write: if false`.
+Slot yazma işlemi **yalnızca Admin API** veya Admin CLI üzerinden yapılır. Client-side `allow write: if false`.
 
 ---
 
@@ -167,11 +167,11 @@ Slot yazma işlemi **yalnızca Admin SDK** üzerinden yapılır. Client-side `al
 
 ```typescript
 type RentalStatus =
-  | "onay_bekliyor"   // Kullanıcı ödeme bildirdi, admin bekliyor
-  | "aktif"           // Admin onayladı
-  | "reddedildi"      // Admin reddetti (slot serbest)
-  | "iptal"           // Admin iptal etti (slot serbest)
-  | "tamamlandi"      // Kiralama tamamlandı (slot geçmiş)
+  | "pending"     // Kullanıcı ödeme bildirdi, admin bekliyor
+  | "active"      // Admin onayladı, kiralama aktif
+  | "rejected"    // Admin reddetti (slot serbest)
+  | "cancelled"   // Admin veya kullanıcı iptal etti (slot serbest)
+  | "completed"   // Kiralama tamamlandı (slot geçmiş)
 ```
 
 ---
@@ -189,10 +189,12 @@ FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/service-account.json \
 
 ### Admin Paneli Yetkileri
 
-- **Araç envanteri:** Araç ekleme ve silme
+- **Araç envanteri:** Araç ekleme (validasyonlu) ve silme
+- **Slot Yönetimi (Yeni):** Araç seçip yeni müsait tarih aralıkları tanımlama (çakışma kontrollü) ve mevcut slotları silme.
 - **Rezervasyon yönetimi:**
-  - `onay_bekliyor` → Onayla / Reddet
-  - `aktif` → Tamamlandı / İptal Et
+  - Sekmeli filtreleme (Bekleyen, Aktif, Tamamlanan, İptal Edilen, Tümü)
+  - `pending` → Onayla / Reddet
+  - `active` → Tamamlandı / İptal Et
 
 ---
 
@@ -210,6 +212,7 @@ npm test -- --run # Watch mode olmadan tek seferlik çalıştır
 | `tests/rentalService.test.ts` | Tarih çakışması, dinamik fiyat hesaplama |
 | `tests/reserveApi.test.ts` | Server-side fiyat güvenliği, slot durum kontrolleri, eşzamanlı rezervasyon |
 | `tests/adminApi.test.ts` | Admin status geçişleri, slot serbest bırakma, yetki kontrolleri |
+| `tests/adminSlot.test.ts` | Admin slot çakışma (overlap) tespiti ve validasyonu |
 | `tests/rentalStatus.test.ts` | TypeScript tip güvenliği, RentalStatus union, Car.id, isActive |
 
 ---
@@ -218,9 +221,9 @@ npm test -- --run # Watch mode olmadan tek seferlik çalıştır
 
 ### Vercel (Önerilen)
 
-1. Vercel dashboard'unda environment variables ekleyin (`.env.local` ile aynı)
-2. `service-account.json` içeriğini `FIREBASE_SERVICE_ACCOUNT` environment variable olarak ekleyin (JSON string)
-3. Push → Otomatik deploy
+1. Vercel dashboard'unda environment variables ekleyin (`.env.local` ile aynı).
+2. `service-account.json` içeriğini `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable olarak ekleyin (tek satır JSON string).
+3. Push → Otomatik deploy.
 
 > **Not:** Production ortamında Firebase config eksikse uygulama açık hata verir, demo mode'a geçmez.
 
@@ -229,7 +232,6 @@ npm test -- --run # Watch mode olmadan tek seferlik çalıştır
 ## Proje Sınırları
 
 - **Ödeme entegrasyonu yoktur.** Sistem banka havalesi referans numarası üzerinden çalışır; otomatik ödeme doğrulaması yapılmaz.
-- **Slot yönetim arayüzü yoktur.** `carSlots` dokümanları Firestore Console veya script üzerinden oluşturulmalıdır.
 - **Bildirim sistemi yoktur.** Admin onay sonrası kullanıcıya e-posta/SMS gönderilmez.
 - **Firebase Storage kullanılmamaktadır.** Dekont yükleme özelliği yoktur; sadece metin referans numarası alınır.
 

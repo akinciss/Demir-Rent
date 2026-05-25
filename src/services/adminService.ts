@@ -58,6 +58,21 @@ export const adminService = {
     );
   },
 
+  async getAllRentalsWithDetails(): Promise<Rental[]> {
+    const { rentalRepository } = await import("@/repositories/rentalRepository");
+    const allRentals = await rentalRepository.getAllRentals();
+
+    return await Promise.all(
+      allRentals.map(async (rental) => {
+        const carDetails = await carRepository.getCarById(rental.carId);
+        return {
+          ...rental,
+          carDetails: carDetails || undefined,
+        };
+      })
+    );
+  },
+
   /**
    * Onaylama — /api/admin/approve üzerinden güvenli transaction.
    * Admin SDK ile slot/çakışma kontrolü yapılır.
@@ -88,5 +103,33 @@ export const adminService = {
    */
   async completeRental(rentalId: string): Promise<void> {
     await adminPost("/api/admin/complete", { rentalId });
+  },
+
+  /**
+   * Yeni slot ekler (API üzerinden overlap kontrolüyle).
+   */
+  async addSlot(carId: string, startAt: string, endAt: string): Promise<void> {
+    await adminPost("/api/admin/slots", { carId, startAt, endAt });
+  },
+
+  /**
+   * Slot siler (sadece available olanları).
+   */
+  async deleteSlot(slotId: string): Promise<void> {
+    if (!auth?.currentUser) {
+      throw new Error("Giriş yapmanız gerekiyor.");
+    }
+    const token = await auth.currentUser.getIdToken();
+    const res = await fetch(`/api/admin/slots?slotId=${slotId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Slot silinirken hata oluştu.");
+    }
   },
 };

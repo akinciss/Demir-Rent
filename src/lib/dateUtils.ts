@@ -20,6 +20,12 @@ export function formatDate(dateValue: any, fallback: string = "-"): string {
     return fallback;
   }
 
+  // Handle YYYY-MM-DD strings directly to prevent timezone shift (e.g. 2026-05-25 -> 25.05.2026)
+  if (typeof dateValue === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    const parts = dateValue.split("-");
+    return `${parts[2]}.${parts[1]}.${parts[0]}`;
+  }
+
   let dateObj: Date;
 
   // 1. If it's already a Date
@@ -60,6 +66,11 @@ export function formatDate(dateValue: any, fallback: string = "-"): string {
  */
 export function normalizeDate(dateValue: any): string | undefined {
   if (dateValue == null) return undefined;
+
+  // Already YYYY-MM-DD format
+  if (typeof dateValue === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    return dateValue;
+  }
 
   let dateObj: Date;
 

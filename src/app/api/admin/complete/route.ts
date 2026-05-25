@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 
       const rental = rentalSnap.data()!;
 
-      if (rental.status !== "aktif") {
+      if (rental.status !== "active") {
         throw new ApiError(
           `Bu rezervasyon '${rental.status}' durumunda, tamamlanamaz. Sadece aktif rezervasyonlar tamamlanabilir.`,
           409
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 
       // Rental güncelle
       transaction.update(rentalRef, {
-        status: "tamamlandi",
+        status: "completed",
         completedAt: FieldValue.serverTimestamp(),
         completedBy: uid,
       });

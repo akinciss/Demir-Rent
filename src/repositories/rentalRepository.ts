@@ -8,11 +8,11 @@ import type { RentalStatus } from "@/types/rental";
 const COLLECTION_NAME = "rentals";
 
 const VALID_STATUSES: RentalStatus[] = [
-  "onay_bekliyor",
-  "aktif",
-  "reddedildi",
-  "iptal",
-  "tamamlandi",
+  "pending",
+  "active",
+  "rejected",
+  "cancelled",
+  "completed",
 ];
 
 function isValidStatus(value: string): value is RentalStatus {
@@ -47,7 +47,7 @@ export const rentalRepository = {
     }
 
     const rentalsRef = collection(db as Firestore, COLLECTION_NAME).withConverter(rentalConverter);
-    const q = query(rentalsRef, where("status", "==", "onay_bekliyor"));
+    const q = query(rentalsRef, where("status", "==", "pending"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ ...doc.data() }) as Rental);
   },
@@ -81,7 +81,7 @@ export const rentalRepository = {
     }
 
     const rentalsRef = collection(db as Firestore, COLLECTION_NAME).withConverter(rentalConverter);
-    const q = query(rentalsRef, where("carId", "==", carId), where("status", "==", "aktif"));
+    const q = query(rentalsRef, where("carId", "==", carId), where("status", "==", "active"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ ...doc.data() }) as Rental);
   }

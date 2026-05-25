@@ -164,7 +164,7 @@ export async function POST(request: Request) {
         slotId,
         startDate,
         endDate,
-        status: "onay_bekliyor",
+        status: "pending",
         receiptInfo: receiptInfo.trim(),
         pricePerDay,
         totalDays,

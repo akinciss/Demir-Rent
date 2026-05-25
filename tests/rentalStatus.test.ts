@@ -8,21 +8,21 @@ import type { Car } from '@/types/car';
  */
 
 const VALID_STATUSES: RentalStatus[] = [
-  'onay_bekliyor',
-  'aktif',
-  'reddedildi',
-  'iptal',
-  'tamamlandi',
+  'pending',
+  'active',
+  'rejected',
+  'cancelled',
+  'completed',
 ];
 
 describe('RentalStatus type', () => {
   it('accepts all valid status values', () => {
     const statuses: RentalStatus[] = [
-      'onay_bekliyor',
-      'aktif',
-      'reddedildi',
-      'iptal',
-      'tamamlandi',
+      'pending',
+      'active',
+      'rejected',
+      'cancelled',
+      'completed',
     ];
     // All values should be in the valid set
     for (const s of statuses) {
@@ -34,14 +34,14 @@ describe('RentalStatus type', () => {
     expect(VALID_STATUSES).toHaveLength(5);
   });
 
-  it('includes reddedildi as a distinct value from iptal', () => {
-    expect(VALID_STATUSES).toContain('reddedildi');
-    expect(VALID_STATUSES).toContain('iptal');
-    expect('reddedildi').not.toBe('iptal');
+  it('includes rejected as a distinct value from cancelled', () => {
+    expect(VALID_STATUSES).toContain('rejected');
+    expect(VALID_STATUSES).toContain('cancelled');
+    expect('rejected').not.toBe('cancelled');
   });
 
   it('does not include legacy string values', () => {
-    const legacyValues = ['pending', 'approved', 'cancelled', 'active'];
+    const legacyValues = ['onay_bekliyor', 'aktif', 'reddedildi', 'iptal', 'tamamlandi'];
     for (const v of legacyValues) {
       expect(VALID_STATUSES).not.toContain(v as RentalStatus);
     }
@@ -102,25 +102,25 @@ describe('Car.isActive backward compatibility', () => {
 });
 
 describe('Status transition rules (documented expectations)', () => {
-  it('only onay_bekliyor can be approved', () => {
-    const approvableStatuses: RentalStatus[] = ['onay_bekliyor'];
-    const nonApprovable: RentalStatus[] = ['aktif', 'reddedildi', 'iptal', 'tamamlandi'];
+  it('only pending can be approved', () => {
+    const approvableStatuses: RentalStatus[] = ['pending'];
+    const nonApprovable: RentalStatus[] = ['active', 'rejected', 'cancelled', 'completed'];
 
-    expect(approvableStatuses).toContain('onay_bekliyor');
+    expect(approvableStatuses).toContain('pending');
     for (const s of nonApprovable) {
       expect(approvableStatuses).not.toContain(s);
     }
   });
 
-  it('only onay_bekliyor can be rejected, slot released', () => {
-    const rejectableStatuses: RentalStatus[] = ['onay_bekliyor'];
-    expect(rejectableStatuses).toContain('onay_bekliyor');
-    expect(rejectableStatuses).not.toContain('aktif');
+  it('only pending can be rejected, slot released', () => {
+    const rejectableStatuses: RentalStatus[] = ['pending'];
+    expect(rejectableStatuses).toContain('pending');
+    expect(rejectableStatuses).not.toContain('active');
   });
 
-  it('only aktif can be cancelled or completed', () => {
-    const actableStatuses: RentalStatus[] = ['aktif'];
-    expect(actableStatuses).toContain('aktif');
-    expect(actableStatuses).not.toContain('onay_bekliyor');
+  it('only active can be cancelled or completed', () => {
+    const actableStatuses: RentalStatus[] = ['active'];
+    expect(actableStatuses).toContain('active');
+    expect(actableStatuses).not.toContain('pending');
   });
 });

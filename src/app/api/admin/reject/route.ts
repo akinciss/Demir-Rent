@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
       const rental = rentalSnap.data()!;
 
-      if (rental.status !== "onay_bekliyor") {
+      if (rental.status !== "pending") {
         throw new ApiError(
           `Bu rezervasyon '${rental.status}' durumunda, reddedilemez.`,
           409
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
 
       // Rental güncelle
       const update: Record<string, unknown> = {
-        status: "reddedildi",
+        status: "rejected",
         rejectedAt: FieldValue.serverTimestamp(),
         rejectedBy: uid,
       };
